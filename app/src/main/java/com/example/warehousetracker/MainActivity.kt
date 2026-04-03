@@ -2,20 +2,58 @@ package com.example.warehousetracker
 
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.AddHome
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Store
+import androidx.compose.material.icons.filled.UnfoldMore
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,7 +66,8 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import java.io.File
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
 // ── Colors ───────────────────────────────
 val NavyBlue = Color(0xFF1a3a5c)
@@ -155,9 +194,15 @@ fun WarehouseTrackerApp() {
     }
     val totalSeconds = branchEmployees.sumOf { trackingData[it.id]?.totalWHSeconds ?: 0 }
 
-    Column(modifier = Modifier.fillMaxSize().background(LightBg).statusBarsPadding()) {
+    Column(modifier = Modifier
+        .fillMaxSize()
+        .background(LightBg)
+        .statusBarsPadding()) {
         // ── Header ──────────────────────────
-        Box(modifier = Modifier.fillMaxWidth().background(NavyBlue).padding(16.dp)) {
+        Box(modifier = Modifier
+            .fillMaxWidth()
+            .background(NavyBlue)
+            .padding(16.dp)) {
             Column(modifier = Modifier.align(Alignment.CenterStart)) {
                 Text("Warehouse Management", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                 Text("${selectedBranch.name} Branch — $today", color = Color.White.copy(0.7f), fontSize = 12.sp)
@@ -172,32 +217,92 @@ fun WarehouseTrackerApp() {
             }
         }
 
-        // ── Dropdown Selector ──────────────────
-        Box(modifier = Modifier.fillMaxWidth().background(Color.White).padding(12.dp)) {
-            OutlinedButton(
-                onClick = { branchDropdownExpanded = true },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Icon(Icons.Default.LocationOn, null, tint = NavyBlue, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Branch: ${selectedBranch.name}", color = NavyBlue, fontWeight = FontWeight.Medium)
-                Spacer(Modifier.weight(1f))
-                Icon(Icons.Default.ArrowDropDown, null, tint = NavyBlue)
-            }
+        // ── Styled Branch Selector ──────────────────
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(2.dp)
+        ) {
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { branchDropdownExpanded = true }
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        modifier = Modifier.size(36.dp),
+                        shape = CircleShape,
+                        color = NavyBlue.copy(0.1f)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Default.LocationOn,
+                                null,
+                                tint = NavyBlue,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Selected Branch",
+                            fontSize = 11.sp,
+                            color = Color.Gray,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            selectedBranch.name,
+                            fontSize = 16.sp,
+                            color = NavyBlue,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Icon(Icons.Default.UnfoldMore, null, tint = Color.Gray)
+                }
 
-            DropdownMenu(expanded = branchDropdownExpanded, onDismissRequest = { branchDropdownExpanded = false }) {
-                branches.forEach { branch ->
-                    DropdownMenuItem(
-                        text = { Text(branch.name) },
-                        onClick = { selectedBranch = branch; branchDropdownExpanded = false }
-                    )
+                DropdownMenu(
+                    expanded = branchDropdownExpanded,
+                    onDismissRequest = { branchDropdownExpanded = false },
+                    modifier = Modifier
+                        .fillMaxWidth(0.9f)
+                        .background(Color.White)
+                ) {
+                    branches.forEach { branch ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    branch.name,
+                                    fontWeight = if (selectedBranch.id == branch.id) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.Store,
+                                    null,
+                                    tint = if (selectedBranch.id == branch.id) GreenColor else Color.Gray,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
+                            onClick = {
+                                selectedBranch = branch
+                                branchDropdownExpanded = false
+                            }
+                        )
+                    }
                 }
             }
         }
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             contentPadding = PaddingValues(vertical = 10.dp)
         ) {
@@ -278,7 +383,10 @@ fun EmployeeTrackingCard(track: EmployeeTrack, onAction: (PhaseType) -> Unit) {
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.size(44.dp).clip(CircleShape).background(NavyBlue.copy(0.1f)), contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(NavyBlue.copy(0.1f)), contentAlignment = Alignment.Center) {
                     val initials = track.employee.name.split(" ").take(2).map { it.firstOrNull() ?: "" }.joinToString("")
                     Text(initials, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = NavyBlue)
                 }
@@ -309,7 +417,9 @@ fun PhaseControl(type: PhaseType, data: PhaseData, modifier: Modifier, onClick: 
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(type.label, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Gray, maxLines = 1)
         Spacer(Modifier.height(4.dp))
-        Button(onClick = onClick, modifier = Modifier.fillMaxWidth().height(36.dp), contentPadding = PaddingValues(0.dp), shape = RoundedCornerShape(6.dp), colors = ButtonDefaults.buttonColors(containerColor = if (isActive) GreenColor else NavyBlue.copy(0.8f))) {
+        Button(onClick = onClick, modifier = Modifier
+            .fillMaxWidth()
+            .height(36.dp), contentPadding = PaddingValues(0.dp), shape = RoundedCornerShape(6.dp), colors = ButtonDefaults.buttonColors(containerColor = if (isActive) GreenColor else NavyBlue.copy(0.8f))) {
             Text(text = if (isActive) "OUT" else "IN", fontSize = 11.sp, fontWeight = FontWeight.Bold)
         }
         Spacer(Modifier.height(4.dp))
@@ -329,7 +439,9 @@ fun BranchSummaryTable(branchName: String, employees: List<Employee>, trackingDa
                 }
             }
             Spacer(Modifier.height(8.dp))
-            Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+            Row(modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)) {
                 Text("Name", color = Color.White.copy(0.6f), fontSize = 10.sp, modifier = Modifier.weight(1.2f))
                 Text("Prep", color = Color.White.copy(0.6f), fontSize = 10.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
                 Text("Cycle", color = Color.White.copy(0.6f), fontSize = 10.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
@@ -339,7 +451,9 @@ fun BranchSummaryTable(branchName: String, employees: List<Employee>, trackingDa
             HorizontalDivider(color = Color.White.copy(0.2f))
             employees.forEach { emp ->
                 val t = trackingData[emp.id] ?: return@forEach
-                Row(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(emp.name, color = Color.White, fontSize = 10.sp, modifier = Modifier.weight(1.2f), maxLines = 1)
                     Text(formatDuration(t.preparation.accumulatedSeconds), color = Color.White, fontSize = 9.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
                     Text(formatDuration(t.cycleCount.accumulatedSeconds), color = Color.White, fontSize = 9.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
