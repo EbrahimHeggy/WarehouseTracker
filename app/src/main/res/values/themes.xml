@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
+    <!-- Theme الأصلي للتطبيق -->
     <style name="Theme.WarehouseTracker" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!-- Theme الخاص بشاشة الـ Splash -->
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <!-- الصورة التي ستظهر في المنتصف (ضع صورتك هنا بعد إضافتها للـ drawables) -->
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <!-- لون خلفية الشاشة -->
+        <item name="windowSplashScreenBackground">#1a3a5c</item>
+        <!-- الـ Theme الذي سيفتح بعد انتهاء الـ Splash -->
+        <item name="postSplashScreenTheme">@style/Theme.WarehouseTracker</item>
+    </style>
 </resources>
