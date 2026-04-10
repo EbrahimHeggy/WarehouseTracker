@@ -67,5 +67,14 @@ class AuthRepository {
         return getUserProfile(uid)
     }
 
+    suspend fun resetPassword(email: String): Result<Unit> {
+        return try {
+            auth.sendPasswordResetEmail(email).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     fun logout() = auth.signOut()
 }

@@ -12,8 +12,10 @@ data class AuthState(
     val isLoggedIn: Boolean = false,
     val isLoading: Boolean = true,
     val error: String = "",
-    val profile: UserProfile? = null
+    val profile: UserProfile? = null,
+    val resetEmailSent: Boolean = false  // ← جديد
 )
+
 
 class AuthViewModel : ViewModel() {
     private val repo = AuthRepository()
@@ -60,6 +62,23 @@ class AuthViewModel : ViewModel() {
                 )
             }
         }
+    }
+
+
+    fun resetPassword(email: String) {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isLoading = true, error = "")
+            val result = repo.resetPassword(email)
+            _state.value = if (result.isSuccess) {
+                _state.value.copy(isLoading = false, resetEmailSent = true)
+            } else {
+                _state.value.copy(isLoading = false, error = "Email not found")
+            }
+        }
+    }
+
+    fun clearResetState() {
+        _state.value = _state.value.copy(resetEmailSent = false, error = "")
     }
 
     fun logout() {
