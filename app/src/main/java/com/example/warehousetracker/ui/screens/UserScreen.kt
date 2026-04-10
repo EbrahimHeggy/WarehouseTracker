@@ -19,13 +19,17 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -61,6 +65,7 @@ fun UserScreen(authViewModel: AuthViewModel) {
     var employees by remember { mutableStateOf<List<Employee>>(emptyList()) }
     var tracks by remember { mutableStateOf<Map<String, EmployeeTrack>>(emptyMap()) }
     var isLoading by remember { mutableStateOf(true) }
+    var searchQuery by remember { mutableStateOf("") }
 
     val empRepo = remember { EmployeeRepository() }
     val trackRepo = remember { TrackingRepository() }
@@ -71,6 +76,14 @@ fun UserScreen(authViewModel: AuthViewModel) {
             employees = empRepo.getEmployeesByBranch(profile!!.branchId)
             tracks = trackRepo.getTracksForBranch(employees, trackRepo.today())
             isLoading = false
+        }
+    }
+
+    val filteredEmployees = remember(employees, searchQuery) {
+        if (searchQuery.isBlank()) employees
+        else employees.filter {
+            it.name.contains(searchQuery, ignoreCase = true) ||
+                    it.code.contains(searchQuery, ignoreCase = true)
         }
     }
 
@@ -170,6 +183,44 @@ fun UserScreen(authViewModel: AuthViewModel) {
                         }
                     }
 
+                    // Search Bar
+                    item {
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            placeholder = { Text("Search by name or code...", fontSize = 14.sp) },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.Search,
+                                    contentDescription = null,
+                                    tint = Color.Gray
+                                )
+                            },
+                            trailingIcon = {
+                                if (searchQuery.isNotEmpty()) {
+                                    IconButton(onClick = { searchQuery = "" }) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = null,
+                                            tint = Color.Gray
+                                        )
+                                    }
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color.White,
+                                unfocusedContainerColor = Color.White,
+                                focusedBorderColor = NavyBlue,
+                                unfocusedBorderColor = Color.Transparent
+                            ),
+                            singleLine = true
+                        )
+                    }
+
                     // Metrics
                     item {
                         val activeCount = employees.count { emp ->
@@ -210,7 +261,7 @@ fun UserScreen(authViewModel: AuthViewModel) {
                     }
 
                     // Employee Read-Only Cards
-                    items(employees, key = { it.id }) { emp ->
+                    items(filteredEmployees, key = { it.id }) { emp ->
                         val track = tracks[emp.id] ?: EmployeeTrack(
                             employeeId = emp.id,
                             date = trackRepo.today()

@@ -147,8 +147,9 @@ class DashboardViewModel : ViewModel() {
                     .forEach { (phaseName, data) ->
                         data.history.forEach { session ->
                             sb.append("$branchName,${emp.name},${emp.code},$phaseName,")
+                            // Adding single quote before times to force Excel to treat them as text
                             sb.append(
-                                "${session.startTime},${session.endTime},${
+                                "'${session.startTime},'${session.endTime},${
                                     formatDuration(
                                         session.durationSeconds
                                     )
@@ -157,7 +158,7 @@ class DashboardViewModel : ViewModel() {
                         }
                         if (data.isActive) {
                             sb.append("$branchName,${emp.name},${emp.code},$phaseName,")
-                            sb.append("${data.currentStartTime},STILL IN,In Progress\n")
+                            sb.append("'${data.currentStartTime},STILL IN,In Progress\n")
                         }
                     }
             }

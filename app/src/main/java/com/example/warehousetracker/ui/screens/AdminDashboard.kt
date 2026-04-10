@@ -24,11 +24,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddHome
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material3.AlertDialog
@@ -44,6 +46,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -89,6 +92,15 @@ fun AdminDashboardScreen(
     var showAddBranchDialog by remember { mutableStateOf(false) }
     var showAddEmployeeDialog by remember { mutableStateOf(false) }
     var manualTimeDialogData by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    val filteredEmployees = remember(state.employees, searchQuery) {
+        if (searchQuery.isBlank()) state.employees
+        else state.employees.filter {
+            it.name.contains(searchQuery, ignoreCase = true) ||
+                    it.code.contains(searchQuery, ignoreCase = true)
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -147,7 +159,7 @@ fun AdminDashboardScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     elevation = CardDefaults.cardElevation(4.dp)
@@ -240,13 +252,12 @@ fun AdminDashboardScreen(
                         CircularProgressIndicator(color = NavyBlue)
                     }
                 } else {
-                    val branchEmployees = state.employees
-                    val activeCount = branchEmployees.count { emp ->
+                    val activeCount = filteredEmployees.count { emp ->
                         val t = state.tracks[emp.id] ?: return@count false
                         t.preparation.isActive || t.cycleCount.isActive || t.loading.isActive
                     }
                     val totalSeconds =
-                        branchEmployees.sumOf { state.tracks[it.id]?.totalWHSeconds ?: 0 }
+                        filteredEmployees.sumOf { state.tracks[it.id]?.totalWHSeconds ?: 0 }
 
                     LazyColumn(
                         modifier = Modifier
@@ -255,6 +266,49 @@ fun AdminDashboardScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         contentPadding = PaddingValues(bottom = 24.dp)
                     ) {
+                        // Search Bar
+                        item {
+                            OutlinedTextField(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                placeholder = {
+                                    Text(
+                                        "Search by name or code...",
+                                        fontSize = 14.sp
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Search,
+                                        contentDescription = null,
+                                        tint = Color.Gray
+                                    )
+                                },
+                                trailingIcon = {
+                                    if (searchQuery.isNotEmpty()) {
+                                        IconButton(onClick = { searchQuery = "" }) {
+                                            Icon(
+                                                Icons.Default.Close,
+                                                contentDescription = null,
+                                                tint = Color.Gray
+                                            )
+                                        }
+                                    }
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = Color.White,
+                                    unfocusedContainerColor = Color.White,
+                                    focusedBorderColor = NavyBlue,
+                                    unfocusedBorderColor = Color.Transparent
+                                ),
+                                singleLine = true
+                            )
+                        }
+
                         // Metrics
                         item {
                             Row(
@@ -263,7 +317,7 @@ fun AdminDashboardScreen(
                             ) {
                                 MetricCard(
                                     Modifier.weight(1f),
-                                    "${branchEmployees.size}",
+                                    "${filteredEmployees.size}",
                                     "Employees",
                                     NavyBlue
                                 )
@@ -283,7 +337,7 @@ fun AdminDashboardScreen(
                         }
 
                         // Employee Cards
-                        items(branchEmployees, key = { it.id }) { emp ->
+                        items(filteredEmployees, key = { it.id }) { emp ->
                             val track = state.tracks[emp.id] ?: EmployeeTrack(
                                 employeeId = emp.id,
                                 date = state.date
@@ -306,7 +360,7 @@ fun AdminDashboardScreen(
                         item {
                             SummaryCard(
                                 branchName = state.selectedBranch?.name ?: "",
-                                employees = branchEmployees,
+                                employees = filteredEmployees,
                                 tracks = state.tracks,
                                 onExport = { dashboardViewModel.exportCSV(context) }
                             )
