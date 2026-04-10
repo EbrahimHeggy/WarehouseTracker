@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "559514818316",
+    "project_id": "warehousetracker-f1dbd",
+    "storage_bucket": "warehousetracker-f1dbd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:559514818316:android:4f3954feeae95e8f661b29",
+        "android_client_info": {
+          "package_name": "com.example.warehousetracker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDKZ5Xaeox36-n2dDkQZboda5KPvdnwi50"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
