@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.AddHome
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.LocationOn
@@ -90,6 +91,7 @@ fun AdminDashboardScreen(
 
     var branchDropdownExpanded by remember { mutableStateOf(false) }
     var showAddBranchDialog by remember { mutableStateOf(false) }
+    var showDeleteBranchDialog by remember { mutableStateOf(false) }
     var showAddEmployeeDialog by remember { mutableStateOf(false) }
     var manualTimeDialogData by remember { mutableStateOf<Pair<String, String>?>(null) }
     var searchQuery by remember { mutableStateOf("") }
@@ -188,12 +190,29 @@ fun AdminDashboardScreen(
                             Spacer(Modifier.width(16.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text("Current Location", fontSize = 12.sp, color = Color.Gray)
-                                Text(
-                                    state.selectedBranch?.name ?: "Select Branch",
-                                    fontSize = 18.sp,
-                                    color = NavyBlue,
-                                    fontWeight = FontWeight.ExtraBold
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        state.selectedBranch?.name ?: "Select Branch",
+                                        fontSize = 18.sp,
+                                        color = NavyBlue,
+                                        fontWeight = FontWeight.ExtraBold
+                                    )
+                                    if (state.selectedBranch != null) {
+                                        IconButton(
+                                            onClick = { showDeleteBranchDialog = true },
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .padding(start = 8.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Delete,
+                                                null,
+                                                tint = RedColor.copy(0.6f),
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                }
                             }
                             Icon(
                                 if (branchDropdownExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
@@ -396,6 +415,26 @@ fun AdminDashboardScreen(
                 TextButton(onClick = {
                     showAddBranchDialog = false
                 }) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (showDeleteBranchDialog && state.selectedBranch != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteBranchDialog = false },
+            title = { Text("Delete Branch") },
+            text = { Text("Are you sure you want to delete branch '${state.selectedBranch?.name}'? This action cannot be undone.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        dashboardViewModel.deleteBranch(state.selectedBranch!!.id)
+                        showDeleteBranchDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = RedColor)
+                ) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteBranchDialog = false }) { Text("Cancel") }
             }
         )
     }

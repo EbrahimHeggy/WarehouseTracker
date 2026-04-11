@@ -108,6 +108,13 @@ class DashboardViewModel : ViewModel() {
         }
     }
 
+    fun deleteBranch(branchId: String) {
+        viewModelScope.launch {
+            branchRepo.deleteBranch(branchId)
+            loadBranches()
+        }
+    }
+
     fun addEmployee(name: String, code: String, branchId: String) {
         viewModelScope.launch {
             empRepo.addEmployee(name, code, branchId)
