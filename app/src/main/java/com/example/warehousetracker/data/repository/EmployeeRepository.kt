@@ -43,6 +43,26 @@ class EmployeeRepository {
 
     suspend fun addEmployee(name: String, code: String, branchId: String): Result<Employee> {
         return try {
+            // التحقق من وجود موظف بنفس الكود في نفس الفرع
+            val existingCode = db.collection("employees")
+                .whereEqualTo("branchId", branchId)
+                .whereEqualTo("code", code)
+                .get().await()
+
+            if (!existingCode.isEmpty) {
+                return Result.failure(Exception("Employee with this code already exists in this branch"))
+            }
+
+            // التحقق من وجود موظف بنفس الاسم في نفس الفرع
+            val existingName = db.collection("employees")
+                .whereEqualTo("branchId", branchId)
+                .whereEqualTo("name", name)
+                .get().await()
+
+            if (!existingName.isEmpty) {
+                return Result.failure(Exception("Employee with this name already exists in this branch"))
+            }
+
             val data = mapOf("name" to name, "code" to code, "branchId" to branchId)
             val ref = db.collection("employees").add(data).await()
             Result.success(Employee(id = ref.id, name = name, code = code, branchId = branchId))

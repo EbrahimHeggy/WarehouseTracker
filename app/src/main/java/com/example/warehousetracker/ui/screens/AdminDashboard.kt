@@ -1,5 +1,6 @@
 package com.example.warehousetracker.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +22,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.AddHome
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
@@ -29,11 +32,12 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Store
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -63,6 +67,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -73,6 +79,7 @@ import com.example.warehousetracker.GreenColor
 import com.example.warehousetracker.LightBg
 import com.example.warehousetracker.NavyBlue
 import com.example.warehousetracker.RedColor
+import com.example.warehousetracker.data.model.Branch
 import com.example.warehousetracker.data.model.Employee
 import com.example.warehousetracker.data.model.EmployeeTrack
 import com.example.warehousetracker.data.model.PhaseData
@@ -87,14 +94,84 @@ fun AdminDashboardScreen(
 ) {
     val context = LocalContext.current
     val state by dashboardViewModel.state.collectAsStateWithLifecycle()
-    val authState by authViewModel.state.collectAsStateWithLifecycle()
 
     var branchDropdownExpanded by remember { mutableStateOf(false) }
     var showAddBranchDialog by remember { mutableStateOf(false) }
     var showDeleteBranchDialog by remember { mutableStateOf(false) }
     var showAddEmployeeDialog by remember { mutableStateOf(false) }
+    var employeeToDelete by remember { mutableStateOf<Employee?>(null) }
     var manualTimeDialogData by remember { mutableStateOf<Pair<String, String>?>(null) }
     var searchQuery by remember { mutableStateOf("") }
+    var showRegisterUserDialog by remember { mutableStateOf(false) }
+    var showImportScreen by remember { mutableStateOf(false) }
+    var showProfile by remember { mutableStateOf(false) }
+
+    // شاشة البروفايل (مركز التحكم للأدمن)
+    if (showProfile) {
+        ProfileScreen(
+            authViewModel = authViewModel,
+            onBack = { showProfile = false },
+            onImportClick = {
+                showImportScreen = true
+            },
+            onRegisterUserClick = {
+                showRegisterUserDialog = true
+            }
+        )
+
+        // النوافذ تظهر فوق البروفايل لضمان بقائك في الصفحة
+        if (showRegisterUserDialog) {
+            RegisterUserDialog(
+                onDismiss = { showRegisterUserDialog = false },
+                onRegister = { email, pass, name, role, branchId ->
+                    authViewModel.registerByAdmin(
+                        context,
+                        email,
+                        pass,
+                        name,
+                        role,
+                        branchId
+                    ) { success, error ->
+                        if (success) {
+                            Toast.makeText(context, "User created successfully!", Toast.LENGTH_LONG)
+                                .show()
+                            showRegisterUserDialog = false
+                        } else {
+                            Toast.makeText(
+                                context,
+                                error ?: "Failed to create user",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                },
+                availableBranches = state.branches,
+                currentBranch = state.selectedBranch
+            )
+        }
+
+        if (showImportScreen) {
+            ImportEmployeesScreen(
+                onBack = { showImportScreen = false },
+                onImportDone = {
+                    showImportScreen = false
+                    state.selectedBranch?.let { dashboardViewModel.loadEmployees(it.id) }
+                }
+            )
+        }
+        return
+    }
+
+    if (showImportScreen) {
+        ImportEmployeesScreen(
+            onBack = { showImportScreen = false },
+            onImportDone = {
+                showImportScreen = false
+                state.selectedBranch?.let { dashboardViewModel.loadEmployees(it.id) }
+            }
+        )
+        return
+    }
 
     val filteredEmployees = remember(state.employees, searchQuery) {
         if (searchQuery.isBlank()) state.employees
@@ -110,40 +187,42 @@ fun AdminDashboardScreen(
             .background(NavyBlue)
             .statusBarsPadding()
     ) {
-        // ── Header ──────────────────────────
-        Box(modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 20.dp)) {
-            Column(modifier = Modifier.align(Alignment.CenterStart)) {
+        // ── Header المطور ──────────────────────────
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, bottom = 20.dp, top = 48.dp)
+        ) {
+            // العنوان في الأعلى
+            Column(modifier = Modifier.align(Alignment.TopStart)) {
                 Text(
-                    "Warehouse Management",
+                    "Warehouse Manager",
                     color = Color.White,
-                    fontSize = 18.sp,
+                    fontSize = 20.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     "${state.selectedBranch?.name ?: ""} Branch — ${state.date}",
                     color = Color.White.copy(0.7f),
-                    fontSize = 12.sp
+                    fontSize = 13.sp
                 )
             }
-            Row(modifier = Modifier.align(Alignment.CenterEnd)) {
+
+            // الأزرار في الأسفل اليمين
+            Row(modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(top = 24.dp)) {
                 IconButton(onClick = { showAddBranchDialog = true }) {
-                    Icon(
-                        Icons.Default.AddHome,
-                        null,
-                        tint = Color.White
-                    )
+                    Icon(Icons.Default.AddHome, null, tint = Color.White)
                 }
-                IconButton(onClick = {
-                    showAddEmployeeDialog = true
-                }) { Icon(Icons.Default.PersonAdd, null, tint = Color.White) }
+                IconButton(onClick = { showAddEmployeeDialog = true }) {
+                    Icon(Icons.Default.PersonAdd, null, tint = Color.White)
+                }
+                IconButton(onClick = { showProfile = true }) {
+                    Icon(Icons.Default.AccountCircle, null, tint = Color.White)
+                }
                 IconButton(onClick = { authViewModel.logout() }) {
-                    Icon(
-                        Icons.Default.Logout,
-                        null,
-                        tint = Color.White
-                    )
+                    Icon(Icons.AutoMirrored.Filled.Logout, null, tint = Color.White)
                 }
             }
         }
@@ -371,7 +450,8 @@ fun AdminDashboardScreen(
                                         phase
                                     )
                                 },
-                                onEdit = { phase -> manualTimeDialogData = emp.id to phase }
+                                onEdit = { phase -> manualTimeDialogData = emp.id to phase },
+                                onDelete = { employeeToDelete = emp }
                             )
                         }
 
@@ -407,7 +487,8 @@ fun AdminDashboardScreen(
             confirmButton = {
                 Button(onClick = {
                     if (branchName.isNotBlank()) {
-                        dashboardViewModel.addBranch(branchName); showAddBranchDialog = false
+                        dashboardViewModel.addBranch(branchName, context); showAddBranchDialog =
+                            false
                     }
                 }) { Text("Add") }
             },
@@ -435,6 +516,26 @@ fun AdminDashboardScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteBranchDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (employeeToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { employeeToDelete = null },
+            title = { Text("Delete Employee") },
+            text = { Text("Are you sure you want to delete '${employeeToDelete?.name}'? This action cannot be undone.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        employeeToDelete?.let { dashboardViewModel.deleteEmployee(it.id) }
+                        employeeToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = RedColor)
+                ) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { employeeToDelete = null }) { Text("Cancel") }
             }
         )
     }
@@ -485,7 +586,7 @@ fun AdminDashboardScreen(
             confirmButton = {
                 Button(onClick = {
                     if (empName.isNotBlank() && empBranch != null) {
-                        dashboardViewModel.addEmployee(empName, empCode, empBranch!!.id)
+                        dashboardViewModel.addEmployee(empName, empCode, empBranch!!.id, context)
                         showAddEmployeeDialog = false
                     }
                 }) { Text("Add") }
@@ -629,6 +730,117 @@ fun AdminDashboardScreen(
     }
 }
 
+@Composable
+fun RegisterUserDialog(
+    onDismiss: () -> Unit,
+    onRegister: (String, String, String, String, String) -> Unit,
+    availableBranches: List<Branch>,
+    currentBranch: Branch?
+) {
+    var regName by remember { mutableStateOf("") }
+    var regEmail by remember { mutableStateOf("") }
+    var regPassword by remember { mutableStateOf("") }
+    var regRole by remember { mutableStateOf("user") }
+    var regBranch by remember { mutableStateOf(currentBranch) }
+    var roleExpanded by remember { mutableStateOf(false) }
+    var branchExpanded by remember { mutableStateOf(false) }
+    var showRegPassword by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Create New User Account") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = regName,
+                    onValueChange = { regName = it },
+                    label = { Text("Full Name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = regEmail,
+                    onValueChange = { regEmail = it },
+                    label = { Text("Email") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = regPassword,
+                    onValueChange = { regPassword = it },
+                    label = { Text("Password") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    visualTransformation = if (showRegPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        IconButton(onClick = { showRegPassword = !showRegPassword }) {
+                            Icon(
+                                if (showRegPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                null,
+                                tint = Color.Gray
+                            )
+                        }
+                    }
+                )
+
+                // Role
+                Box {
+                    OutlinedButton(
+                        onClick = { roleExpanded = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(if (regRole == "admin") "Admin" else "Employee")
+                        Spacer(Modifier.weight(1f))
+                        Icon(Icons.Default.ArrowDropDown, null)
+                    }
+                    DropdownMenu(
+                        expanded = roleExpanded,
+                        onDismissRequest = { roleExpanded = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Employee") },
+                            onClick = { regRole = "user"; roleExpanded = false })
+                        DropdownMenuItem(
+                            text = { Text("Admin") },
+                            onClick = { regRole = "admin"; roleExpanded = false })
+                    }
+                }
+
+                // Branch
+                Box {
+                    OutlinedButton(
+                        onClick = { branchExpanded = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(regBranch?.name ?: "Select Branch")
+                        Spacer(Modifier.weight(1f))
+                        Icon(Icons.Default.ArrowDropDown, null)
+                    }
+                    DropdownMenu(
+                        expanded = branchExpanded,
+                        onDismissRequest = { branchExpanded = false }) {
+                        availableBranches.forEach { b ->
+                            DropdownMenuItem(
+                                text = { Text(b.name) },
+                                onClick = { regBranch = b; branchExpanded = false })
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (regName.isNotBlank() && regEmail.isNotBlank() && regPassword.isNotBlank() && regBranch != null) {
+                        onRegister(regEmail, regPassword, regName, regRole, regBranch!!.id)
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = NavyBlue)
+            ) { Text("Create") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
 // ── Employee Card ────────────────────────
 @Composable
 fun EmployeeCard(
@@ -636,7 +848,8 @@ fun EmployeeCard(
     employeeCode: String,
     track: EmployeeTrack,
     onToggle: (String) -> Unit,
-    onEdit: (String) -> Unit
+    onEdit: (String) -> Unit,
+    onDelete: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -659,7 +872,17 @@ fun EmployeeCard(
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(employeeName, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(employeeName, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        IconButton(onClick = onDelete) {
+                            Icon(
+                                Icons.Default.Delete,
+                                null,
+                                tint = RedColor.copy(0.6f),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
                     Text("Code: $employeeCode", color = Color.Gray, fontSize = 12.sp)
                 }
                 Text(

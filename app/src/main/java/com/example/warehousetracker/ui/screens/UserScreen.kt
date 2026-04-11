@@ -19,8 +19,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -87,6 +88,17 @@ fun UserScreen(authViewModel: AuthViewModel) {
         }
     }
 
+
+    var showProfile by remember { mutableStateOf(false) }
+
+    if (showProfile) {
+        ProfileScreen(
+            authViewModel = authViewModel,
+            onBack = { showProfile = false }
+        )
+        return
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -96,10 +108,11 @@ fun UserScreen(authViewModel: AuthViewModel) {
         // Header
         Box(modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 20.dp)) {
-            Column(modifier = Modifier.align(Alignment.CenterStart)) {
+            .padding(start = 16.dp, end = 16.dp, bottom = 20.dp, top = 48.dp)
+        ) {
+            Column(modifier = Modifier.align(Alignment.TopStart)) {
                 Text(
-                    "Warehouse Management",
+                    "Warehouse Employee",
                     color = Color.White,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
@@ -110,11 +123,16 @@ fun UserScreen(authViewModel: AuthViewModel) {
                     fontSize = 12.sp
                 )
             }
-            IconButton(
-                onClick = { authViewModel.logout() },
-                modifier = Modifier.align(Alignment.CenterEnd)
-            ) {
-                Icon(Icons.Default.Logout, null, tint = Color.White)
+
+            Row(modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(top = 20.dp)) {
+                IconButton(onClick = { showProfile = true }) {
+                    Icon(Icons.Default.AccountCircle, null, tint = Color.White)
+                }
+                IconButton(onClick = { authViewModel.logout() }) {
+                    Icon(Icons.AutoMirrored.Filled.Logout, null, tint = Color.White)
+                }
             }
         }
 
@@ -268,6 +286,15 @@ fun UserScreen(authViewModel: AuthViewModel) {
                         )
                         ReadOnlyEmployeeCard(emp = emp, track = track)
                     }
+
+                    // Summary Card — View Only for current branch
+                    item {
+                        UserSummaryCard(
+                            branchName = "Your Branch",
+                            employees = filteredEmployees,
+                            tracks = tracks
+                        )
+                    }
                 }
             }
         }
@@ -386,6 +413,118 @@ fun ReadOnlyPhase(label: String, data: PhaseData, modifier: Modifier) {
         if (data.isActive) {
             Spacer(Modifier.height(2.dp))
             Text("Since ${data.currentStartTime}", fontSize = 8.sp, color = GreenColor)
+        }
+    }
+}
+
+// ── User Branch Summary ──────────────────
+@Composable
+fun UserSummaryCard(
+    branchName: String,
+    employees: List<Employee>,
+    tracks: Map<String, EmployeeTrack>
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = NavyBlue),
+        elevation = CardDefaults.cardElevation(4.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                "BRANCH SUMMARY",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            Row(modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)) {
+                Text(
+                    "Name",
+                    color = Color.White.copy(0.6f),
+                    fontSize = 10.sp,
+                    modifier = Modifier.weight(1.2f)
+                )
+                Text(
+                    "Prep",
+                    color = Color.White.copy(0.6f),
+                    fontSize = 10.sp,
+                    modifier = Modifier.weight(1f),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                Text(
+                    "Cycle",
+                    color = Color.White.copy(0.6f),
+                    fontSize = 10.sp,
+                    modifier = Modifier.weight(1f),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                Text(
+                    "Load",
+                    color = Color.White.copy(0.6f),
+                    fontSize = 10.sp,
+                    modifier = Modifier.weight(1f),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                Text(
+                    "Total",
+                    color = Color.White.copy(0.6f),
+                    fontSize = 10.sp,
+                    modifier = Modifier.weight(1.2f),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
+            HorizontalDivider(color = Color.White.copy(0.1f))
+
+            employees.forEach { emp ->
+                val t = tracks[emp.id] ?: return@forEach
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        emp.name,
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        modifier = Modifier.weight(1.2f),
+                        maxLines = 1
+                    )
+                    Text(
+                        formatDuration(t.preparation.accumulatedSeconds),
+                        color = Color.White,
+                        fontSize = 9.sp,
+                        modifier = Modifier.weight(1f),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    Text(
+                        formatDuration(t.cycleCount.accumulatedSeconds),
+                        color = Color.White,
+                        fontSize = 9.sp,
+                        modifier = Modifier.weight(1f),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    Text(
+                        formatDuration(t.loading.accumulatedSeconds),
+                        color = Color.White,
+                        fontSize = 9.sp,
+                        modifier = Modifier.weight(1f),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    Text(
+                        formatDuration(t.totalWHSeconds),
+                        color = AmberColor,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1.2f),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+            }
         }
     }
 }

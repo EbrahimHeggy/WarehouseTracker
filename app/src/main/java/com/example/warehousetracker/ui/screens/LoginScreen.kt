@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -55,7 +54,6 @@ import com.example.warehousetracker.ui.viewmodel.AuthViewModel
 @Composable
 fun LoginScreen(
     authViewModel: AuthViewModel,
-    onNavigateToRegister: () -> Unit
 ) {
     val state by authViewModel.state.collectAsState()
     var email by remember { mutableStateOf("") }
@@ -98,7 +96,7 @@ fun LoginScreen(
                 }
 
                 Text(
-                    "Warehouse Management",
+                    "Warehouse Manager",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = NavyBlue
@@ -169,21 +167,7 @@ fun LoginScreen(
                         Text("Login", fontSize = 16.sp)
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Don't have an account?", fontSize = 13.sp, color = Color.Gray)
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        "Register",
-                        fontSize = 13.sp,
-                        color = NavyBlue,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.clickable { onNavigateToRegister() }
-                    )
-                }
+
             }
         }
     }

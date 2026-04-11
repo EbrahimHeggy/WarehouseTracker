@@ -20,6 +20,15 @@ class BranchRepository {
 
     suspend fun addBranch(name: String): Result<Branch> {
         return try {
+            // التحقق من وجود فرع بنفس الاسم
+            val existing = db.collection("branches")
+                .whereEqualTo("name", name)
+                .get().await()
+
+            if (!existing.isEmpty) {
+                return Result.failure(Exception("Branch name already exists"))
+            }
+
             val ref = db.collection("branches").add(mapOf("name" to name)).await()
             Result.success(Branch(id = ref.id, name = name))
         } catch (e: Exception) {

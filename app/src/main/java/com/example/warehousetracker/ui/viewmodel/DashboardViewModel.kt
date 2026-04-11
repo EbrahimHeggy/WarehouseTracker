@@ -2,6 +2,7 @@ package com.example.warehousetracker.ui.viewmodel
 
 import android.content.Context
 import android.content.Intent
+import android.widget.Toast
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -101,10 +102,18 @@ class DashboardViewModel : ViewModel() {
         }
     }
 
-    fun addBranch(name: String) {
+    fun addBranch(name: String, context: Context) {
         viewModelScope.launch {
-            branchRepo.addBranch(name)
-            loadBranches()
+            val result = branchRepo.addBranch(name)
+            if (result.isSuccess) {
+                loadBranches()
+            } else {
+                Toast.makeText(
+                    context,
+                    result.exceptionOrNull()?.message ?: "Error",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
         }
     }
 
@@ -115,9 +124,24 @@ class DashboardViewModel : ViewModel() {
         }
     }
 
-    fun addEmployee(name: String, code: String, branchId: String) {
+    fun addEmployee(name: String, code: String, branchId: String, context: Context) {
         viewModelScope.launch {
-            empRepo.addEmployee(name, code, branchId)
+            val result = empRepo.addEmployee(name, code, branchId)
+            if (result.isSuccess) {
+                _state.value.selectedBranch?.let { loadEmployees(it.id) }
+            } else {
+                Toast.makeText(
+                    context,
+                    result.exceptionOrNull()?.message ?: "Error",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
+    fun deleteEmployee(empId: String) {
+        viewModelScope.launch {
+            empRepo.deleteEmployee(empId)
             _state.value.selectedBranch?.let { loadEmployees(it.id) }
         }
     }
