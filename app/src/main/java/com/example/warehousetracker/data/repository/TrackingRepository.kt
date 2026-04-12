@@ -9,6 +9,7 @@ import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -163,5 +164,50 @@ class TrackingRepository {
             result[emp.id] = getTrack(emp.id, date)
         }
         return result
+    }
+
+
+    suspend fun getTracksForDateRange(
+        employees: List<Employee>,
+        startDate: String,
+        endDate: String
+    ): Map<String, List<Pair<String, EmployeeTrack>>> {
+        // بيرجع Map<employeeId, List<Pair<date, track>>>
+        val result = mutableMapOf<String, MutableList<Pair<String, EmployeeTrack>>>()
+
+        // جيب كل الأيام بين التاريخين
+        val dates = getDatesBetween(startDate, endDate)
+
+        employees.forEach { emp ->
+            result[emp.id] = mutableListOf()
+            dates.forEach { date ->
+                val track = getTrack(emp.id, date)
+                // بس لو في داتا في اليوم ده
+                if (track.totalWHSeconds > 0 ||
+                    track.preparation.history.isNotEmpty() ||
+                    track.cycleCount.history.isNotEmpty() ||
+                    track.loading.history.isNotEmpty()
+                ) {
+                    result[emp.id]!!.add(date to track)
+                }
+            }
+        }
+        return result
+    }
+
+    private fun getDatesBetween(startDate: String, endDate: String): List<String> {
+        val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val start = fmt.parse(startDate) ?: return emptyList()
+        val end = fmt.parse(endDate) ?: return emptyList()
+
+        val dates = mutableListOf<String>()
+        val cal = Calendar.getInstance()
+        cal.time = start
+
+        while (!cal.time.after(end)) {
+            dates.add(fmt.format(cal.time))
+            cal.add(Calendar.DAY_OF_MONTH, 1)
+        }
+        return dates
     }
 }

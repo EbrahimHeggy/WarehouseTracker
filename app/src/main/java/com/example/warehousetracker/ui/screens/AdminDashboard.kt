@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.LocationOn
@@ -173,6 +174,19 @@ fun AdminDashboardScreen(
         return
     }
 
+    var showExportScreen by remember { mutableStateOf(false) }
+
+    if (showExportScreen) {
+        ExportScreen(
+            dashboardViewModel = dashboardViewModel,
+            onBack = { showExportScreen = false }
+        )
+        return
+    }
+
+
+
+
     val filteredEmployees = remember(state.employees, searchQuery) {
         if (searchQuery.isBlank()) state.employees
         else state.employees.filter {
@@ -223,6 +237,9 @@ fun AdminDashboardScreen(
                 }
                 IconButton(onClick = { authViewModel.logout() }) {
                     Icon(Icons.AutoMirrored.Filled.Logout, null, tint = Color.White)
+                }
+                IconButton(onClick = { showExportScreen = true }) {
+                    Icon(Icons.Default.FileDownload, null, tint = Color.White)
                 }
             }
         }
@@ -1012,6 +1029,9 @@ fun SummaryCard(
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp
                 )
+
+
+
                 IconButton(onClick = onExport, modifier = Modifier.size(24.dp)) {
                     Icon(
                         Icons.Default.Share,

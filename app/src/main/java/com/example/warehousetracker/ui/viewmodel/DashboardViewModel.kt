@@ -211,4 +211,109 @@ class DashboardViewModel : ViewModel() {
             }
         }
     }
+
+
+    fun exportDateRangeCSV(context: Context, startDate: String, endDate: String) {
+        viewModelScope.launch {
+            val employees = _state.value.employees
+            val branches = _state.value.branches
+
+            // جيب الداتا من كل الأيام
+            val allTracks = trackRepo.getTracksForDateRange(employees, startDate, endDate)
+
+            val sb = StringBuilder()
+
+            // ── Summary per Employee ──────────
+            sb.append("=== SUMMARY REPORT ===\n")
+            sb.append("Period: $startDate to $endDate\n\n")
+            sb.append("Branch,Name,Code,Total Prep,Total Cycle,Total Loading,Total WH Time\n")
+
+            employees.forEach { emp ->
+                val branchName = branches.find { it.id == emp.branchId }?.name ?: ""
+                val empTracks = allTracks[emp.id] ?: emptyList()
+
+                val totalPrep = empTracks.sumOf { it.second.preparation.accumulatedSeconds }
+                val totalCycle = empTracks.sumOf { it.second.cycleCount.accumulatedSeconds }
+                val totalLoading = empTracks.sumOf { it.second.loading.accumulatedSeconds }
+                val totalWH = totalPrep + totalCycle + totalLoading
+
+                if (totalWH > 0) {
+                    sb.append("$branchName,${emp.name},${emp.code},")
+                    sb.append("${formatDuration(totalPrep)},")
+                    sb.append("${formatDuration(totalCycle)},")
+                    sb.append("${formatDuration(totalLoading)},")
+                    sb.append("${formatDuration(totalWH)}\n")
+                }
+            }
+
+            sb.append("\n\n")
+
+            // ── Daily Breakdown ───────────────
+            sb.append("=== DAILY BREAKDOWN ===\n")
+            sb.append("Date,Branch,Name,Code,Prep,Cycle Count,Loading,Total\n")
+
+            employees.forEach { emp ->
+                val branchName = branches.find { it.id == emp.branchId }?.name ?: ""
+                val empTracks = allTracks[emp.id] ?: emptyList()
+
+                empTracks.forEach { (date, track) ->
+                    if (track.totalWHSeconds > 0) {
+                        sb.append("$date,$branchName,${emp.name},${emp.code},")
+                        sb.append("${formatDuration(track.preparation.accumulatedSeconds)},")
+                        sb.append("${formatDuration(track.cycleCount.accumulatedSeconds)},")
+                        sb.append("${formatDuration(track.loading.accumulatedSeconds)},")
+                        sb.append("${formatDuration(track.totalWHSeconds)}\n")
+                    }
+                }
+            }
+
+            sb.append("\n\n")
+
+            // ── Detailed Sessions ─────────────
+            sb.append("=== DETAILED LOG ===\n")
+            sb.append("Date,Branch,Name,Code,Phase,Time In,Time Out,Duration\n")
+
+            employees.forEach { emp ->
+                val branchName = branches.find { it.id == emp.branchId }?.name ?: ""
+                val empTracks = allTracks[emp.id] ?: emptyList()
+
+                empTracks.forEach { (date, track) ->
+                    listOf(
+                        "Prep & Check" to track.preparation,
+                        "Cycle Count" to track.cycleCount,
+                        "Loading" to track.loading
+                    ).forEach { (phaseName, data) ->
+                        data.history.forEach { session ->
+                            sb.append("$date,$branchName,${emp.name},${emp.code},")
+                            sb.append("$phaseName,${session.startTime},${session.endTime},")
+                            sb.append("${formatDuration(session.durationSeconds)}\n")
+                        }
+                        if (data.isActive) {
+                            sb.append("$date,$branchName,${emp.name},${emp.code},")
+                            sb.append("$phaseName,${data.currentStartTime},STILL IN,In Progress\n")
+                        }
+                    }
+                }
+            }
+
+            // Share
+            try {
+                val fileName = "Warehouse_${startDate}_to_${endDate}.csv"
+                val file = File(context.cacheDir, fileName)
+                file.writeText(sb.toString())
+                val uri =
+                    FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/csv"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                context.startActivity(Intent.createChooser(intent, "Export Report"))
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+
 }
