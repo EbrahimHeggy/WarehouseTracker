@@ -29,7 +29,6 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.LocationOn
@@ -238,9 +237,7 @@ fun AdminDashboardScreen(
                 IconButton(onClick = { authViewModel.logout() }) {
                     Icon(Icons.AutoMirrored.Filled.Logout, null, tint = Color.White)
                 }
-                IconButton(onClick = { showExportScreen = true }) {
-                    Icon(Icons.Default.FileDownload, null, tint = Color.White)
-                }
+
             }
         }
 
@@ -478,7 +475,8 @@ fun AdminDashboardScreen(
                                 branchName = state.selectedBranch?.name ?: "",
                                 employees = filteredEmployees,
                                 tracks = state.tracks,
-                                onExport = { dashboardViewModel.exportCSV(context) }
+                                onExport = { dashboardViewModel.exportCSV(context) },
+                                onExportRange = { showExportScreen = true }  // ← ضيف ده
                             )
                         }
                     }
@@ -1009,7 +1007,9 @@ fun SummaryCard(
     branchName: String,
     employees: List<Employee>,
     tracks: Map<String, EmployeeTrack>,
-    onExport: () -> Unit
+    onExport: () -> Unit,
+    onExportRange: () -> Unit  // ← ضيف ده
+
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1029,16 +1029,26 @@ fun SummaryCard(
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp
                 )
-
-
-
-                IconButton(onClick = onExport, modifier = Modifier.size(24.dp)) {
-                    Icon(
-                        Icons.Default.Share,
-                        null,
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
-                    )
+                Row {
+                    // زرار Export Range
+                    IconButton(onClick = onExportRange, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            Icons.Default.Share,
+                            null,
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(4.dp))
+                    // زرار Share (اللي كان موجود)
+//                    IconButton(onClick = onExport, modifier = Modifier.size(32.dp)) {
+//                        Icon(
+//                            Icons.Default.Share,
+//                            null,
+//                            tint = Color.White,
+//                            modifier = Modifier.size(18.dp)
+//                        )
+//                    }
                 }
             }
             Spacer(Modifier.height(8.dp))
