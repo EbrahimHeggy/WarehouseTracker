@@ -1,15 +1,30 @@
-# 🏭 Warehouse Management App
-**نظام متكامل لإدارة المستودعات وتتبع أوقات عمل الموظفين**
+# 🚀 Warehouse Tracker App
+
+![Platform](https://img.shields.io/badge/platform-Android-blue)
+![Language](https://img.shields.io/badge/language-Kotlin-orange)
+![UI](https://img.shields.io/badge/UI-Jetpack%20Compose-green)
+![Backend](https://img.shields.io/badge/backend-Firebase-yellow)
+![Architecture](https://img.shields.io/badge/architecture-MVVM-red)
+
+A modern **Warehouse Management & Employee Tracking System** built with **Android (Jetpack Compose)** and **Firebase**.
+
+The app allows tracking employee work sessions across multiple phases in real-time, with detailed reporting and role-based access control.
 
 ---
+## 📱 Features
+- 🔐 Authentication (Login / Logout)
+- 👥 Role-Based Access (Admin / User)
+- 🏭 Branch Management
+- 👨‍💼 Employee Management
+- ⏱️ Real-time Work Tracking:
+  - Preparation
+  - Cycle Count
+  - Loading
+- 📊 Live Dashboard
+- 📁 CSV Export Reports
+- 🔄 Firebase Firestore Integration
 
-## 📱 Screenshots
-
-> Coming soon...
-
----
-
-## ✨ Features
+## ✨ Explained Features
 
 ### 👤 Authentication & Roles
 - Firebase Authentication (Login / Password Reset)
@@ -85,7 +100,6 @@ UI (Compose) ──► ViewModel ──► Repository ──► Firebase
         StateFlow (one-way data flow)
 ```
 
----
 
 ## 🛠️ Tech Stack
 
