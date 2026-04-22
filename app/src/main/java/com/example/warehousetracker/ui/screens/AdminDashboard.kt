@@ -1,6 +1,7 @@
 package com.example.warehousetracker.ui.screens
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -109,6 +110,17 @@ fun AdminDashboardScreen(
     var showRegisterUserDialog by remember { mutableStateOf(false) }
     var showImportScreen by remember { mutableStateOf(false) }
     var showProfile by remember { mutableStateOf(false) }
+    var showExportScreen by remember { mutableStateOf(false) }
+
+    // ── Handle Back Button ──
+    BackHandler(enabled = showImportScreen || showExportScreen || showProfile || branchDropdownExpanded) {
+        when {
+            showImportScreen -> showImportScreen = false
+            showExportScreen -> showExportScreen = false
+            showProfile -> showProfile = false
+            branchDropdownExpanded -> branchDropdownExpanded = false
+        }
+    }
 
     // شاشة البروفايل (مركز التحكم للأدمن)
     if (showProfile) {
@@ -176,8 +188,6 @@ fun AdminDashboardScreen(
         )
         return
     }
-
-    var showExportScreen by remember { mutableStateOf(false) }
 
     if (showExportScreen) {
         ExportScreen(
@@ -404,7 +414,7 @@ fun AdminDashboardScreen(
                     }
                     val totalSeconds =
                         filteredEmployees.sumOf { state.tracks[it.id]?.totalWHSeconds ?: 0 }
-
+                    
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
