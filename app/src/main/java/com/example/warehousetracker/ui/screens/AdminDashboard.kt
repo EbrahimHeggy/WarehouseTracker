@@ -31,16 +31,14 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.AddHome
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
@@ -58,6 +56,10 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -88,6 +90,8 @@ import com.example.warehousetracker.data.model.Branch
 import com.example.warehousetracker.data.model.Employee
 import com.example.warehousetracker.data.model.EmployeeTrack
 import com.example.warehousetracker.data.model.PhaseData
+import com.example.warehousetracker.data.model.Vehicle
+import com.example.warehousetracker.data.model.VehicleTrack
 import com.example.warehousetracker.formatDuration
 import com.example.warehousetracker.ui.viewmodel.AuthViewModel
 import com.example.warehousetracker.ui.viewmodel.DashboardViewModel
@@ -104,8 +108,10 @@ fun AdminDashboardScreen(
     var showAddBranchDialog by remember { mutableStateOf(false) }
     var showDeleteBranchDialog by remember { mutableStateOf(false) }
     var showAddEmployeeDialog by remember { mutableStateOf(false) }
+    var showAddVehicleDialog by remember { mutableStateOf(false) }
     var employeeToDelete by remember { mutableStateOf<Employee?>(null) }
-    var manualTimeDialogData by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var vehicleToDelete by remember { mutableStateOf<Vehicle?>(null) }
+    var manualTimeDialogData by remember { mutableStateOf<Triple<String, String, Boolean>?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var showRegisterUserDialog by remember { mutableStateOf(false) }
     var showImportScreen by remember { mutableStateOf(false) }
@@ -122,20 +128,13 @@ fun AdminDashboardScreen(
         }
     }
 
-    // شاشة البروفايل (مركز التحكم للأدمن)
     if (showProfile) {
         ProfileScreen(
             authViewModel = authViewModel,
             onBack = { showProfile = false },
-            onImportClick = {
-                showImportScreen = true
-            },
-            onRegisterUserClick = {
-                showRegisterUserDialog = true
-            }
+            onImportClick = { showImportScreen = true },
+            onRegisterUserClick = { showRegisterUserDialog = true }
         )
-
-        // النوافذ تظهر فوق البروفايل لضمان بقائك في الصفحة
         if (showRegisterUserDialog) {
             RegisterUserDialog(
                 onDismiss = { showRegisterUserDialog = false },
@@ -165,7 +164,6 @@ fun AdminDashboardScreen(
                 currentBranch = state.selectedBranch
             )
         }
-
         if (showImportScreen) {
             ImportEmployeesScreen(
                 onBack = { showImportScreen = false },
@@ -197,20 +195,12 @@ fun AdminDashboardScreen(
         return
     }
 
-    val filteredEmployees = remember(state.employees, searchQuery) {
-        if (searchQuery.isBlank()) state.employees
-        else state.employees.filter {
-            it.name.contains(searchQuery, ignoreCase = true) ||
-                    it.code.contains(searchQuery, ignoreCase = true)
-        }
-    }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(NavyBlue)
     ) {
-        // ── Header (with status bar padding) ──
+        // ── Header ──
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -225,27 +215,80 @@ fun AdminDashboardScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    "${state.selectedBranch?.name ?: ""} Branch — ${state.date}",
+                    "${state.selectedBranch?.name ?: ""} — ${state.date}",
                     color = Color.White.copy(0.7f),
                     fontSize = 13.sp
                 )
             }
-
             Row(modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(top = 24.dp)) {
                 IconButton(onClick = { showAddBranchDialog = true }) {
-                    Icon(Icons.Default.AddHome, null, tint = Color.White)
+                    Icon(
+                        Icons.Default.AddHome,
+                        null,
+                        tint = Color.White
+                    )
                 }
-                IconButton(onClick = { showAddEmployeeDialog = true }) {
-                    Icon(Icons.Default.PersonAdd, null, tint = Color.White)
+                IconButton(onClick = {
+                    if (state.activeTab == "inbound") showAddEmployeeDialog =
+                        true else showAddVehicleDialog = true
+                }) {
+                    Icon(
+                        if (state.activeTab == "inbound") Icons.Default.PersonAdd else Icons.Default.LocalShipping,
+                        null,
+                        tint = Color.White
+                    )
                 }
                 IconButton(onClick = { showProfile = true }) {
-                    Icon(Icons.Default.AccountCircle, null, tint = Color.White)
+                    Icon(
+                        Icons.Default.AccountCircle,
+                        null,
+                        tint = Color.White
+                    )
                 }
                 IconButton(onClick = { authViewModel.logout() }) {
-                    Icon(Icons.AutoMirrored.Filled.Logout, null, tint = Color.White)
+                    Icon(
+                        Icons.AutoMirrored.Filled.Logout,
+                        null,
+                        tint = Color.White
+                    )
                 }
+            }
+        }
+
+        // ── Tab Switcher (Inbound / Outbound) ──
+        TabRow(
+            selectedTabIndex = if (state.activeTab == "inbound") 0 else 1,
+            containerColor = Color.Transparent,
+            contentColor = Color.White,
+            divider = {},
+            indicator = { tabPositions ->
+                TabRowDefaults.SecondaryIndicator(
+                    Modifier.tabIndicatorOffset(tabPositions[if (state.activeTab == "inbound") 0 else 1]),
+                    color = Color.White
+                )
+            }
+        ) {
+            Tab(
+                selected = state.activeTab == "inbound",
+                onClick = { dashboardViewModel.setTab("inbound") }) {
+                Text(
+                    "INBOUND",
+                    modifier = Modifier.padding(12.dp),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp
+                )
+            }
+            Tab(
+                selected = state.activeTab == "outbound",
+                onClick = { dashboardViewModel.setTab("outbound") }) {
+                Text(
+                    "OUTBOUND",
+                    modifier = Modifier.padding(12.dp),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp
+                )
             }
         }
 
@@ -255,8 +298,7 @@ fun AdminDashboardScreen(
             colors = CardDefaults.cardColors(containerColor = LightBg)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-
-                // ── FIXED Top Section: Branch + Search + Metrics ──
+                // ── FIXED Top Section ──
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -293,30 +335,13 @@ fun AdminDashboardScreen(
                             }
                             Spacer(Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Current Location", fontSize = 10.sp, color = Color.Gray)
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        state.selectedBranch?.name ?: "Select Branch",
-                                        fontSize = 16.sp,
-                                        color = NavyBlue,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    if (state.selectedBranch != null) {
-                                        IconButton(
-                                            onClick = { showDeleteBranchDialog = true },
-                                            modifier = Modifier
-                                                .size(20.dp)
-                                                .padding(start = 4.dp)
-                                        ) {
-                                            Icon(
-                                                Icons.Default.Delete,
-                                                null,
-                                                tint = RedColor.copy(0.6f),
-                                                modifier = Modifier.size(14.dp)
-                                            )
-                                        }
-                                    }
-                                }
+                                Text("Location", fontSize = 10.sp, color = Color.Gray)
+                                Text(
+                                    state.selectedBranch?.name ?: "Select Branch",
+                                    fontSize = 16.sp,
+                                    color = NavyBlue,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                             Icon(
                                 if (branchDropdownExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
@@ -331,39 +356,13 @@ fun AdminDashboardScreen(
                                 .fillMaxWidth(0.92f)
                                 .background(Color.White)
                         ) {
-                            Text(
-                                "SWITCH BRANCH",
-                                modifier = Modifier.padding(16.dp, 8.dp),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.Gray
-                            )
-                            HorizontalDivider(color = NavyBlue.copy(alpha = 0.05f))
                             state.branches.forEach { branch ->
-                                val isSelected = state.selectedBranch?.id == branch.id
                                 DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            branch.name,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                        )
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            if (isSelected) Icons.Default.CheckCircle else Icons.Default.Store,
-                                            null,
-                                            tint = if (isSelected) GreenColor else Color.Gray
-                                        )
-                                    },
+                                    text = { Text(branch.name) },
                                     onClick = {
                                         dashboardViewModel.selectBranch(branch); branchDropdownExpanded =
                                         false
-                                    },
-                                    modifier = Modifier.background(
-                                        if (isSelected) NavyBlue.copy(
-                                            alpha = 0.05f
-                                        ) else Color.Transparent
-                                    )
+                                    }
                                 )
                             }
                         }
@@ -376,7 +375,7 @@ fun AdminDashboardScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 8.dp),
-                        placeholder = { Text("Search by name or code...", fontSize = 13.sp) },
+                        placeholder = { Text("Search...", fontSize = 13.sp) },
                         leadingIcon = {
                             Icon(
                                 Icons.Default.Search,
@@ -384,18 +383,6 @@ fun AdminDashboardScreen(
                                 tint = Color.Gray,
                                 modifier = Modifier.size(18.dp)
                             )
-                        },
-                        trailingIcon = {
-                            if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { searchQuery = "" }) {
-                                    Icon(
-                                        Icons.Default.Close,
-                                        null,
-                                        tint = Color.Gray,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
                         },
                         shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
@@ -406,72 +393,84 @@ fun AdminDashboardScreen(
                         ),
                         singleLine = true
                     )
-
-                    // Metrics Row
-                    val activeCount = filteredEmployees.count { emp ->
-                        val t = state.tracks[emp.id] ?: return@count false
-                        t.preparation.isActive || t.cycleCount.isActive || t.loading.isActive
-                    }
-                    val totalSeconds =
-                        filteredEmployees.sumOf { state.tracks[it.id]?.totalWHSeconds ?: 0 }
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        MetricCard(
-                            Modifier.weight(1f),
-                            "${filteredEmployees.size}",
-                            "Total",
-                            NavyBlue
-                        )
-                        MetricCard(Modifier.weight(1f), "$activeCount", "Active", GreenColor)
-                        MetricCard(
-                            Modifier.weight(1f),
-                            formatDuration(totalSeconds),
-                            "Time",
-                            AmberColor
-                        )
-                    }
                 }
 
                 if (state.isLoading) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = NavyBlue)
-                    }
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) { CircularProgressIndicator(color = NavyBlue) }
                 } else {
-                    // Root Column for List + Fixed Summary
                     Column(modifier = Modifier.fillMaxSize()) {
-                        // Scrollable List
-                        LazyColumn(
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(horizontal = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
-                            contentPadding = PaddingValues(bottom = 12.dp)
-                        ) {
-                            items(filteredEmployees, key = { it.id }) { emp ->
-                                val track = state.tracks[emp.id] ?: EmployeeTrack(
-                                    employeeId = emp.id,
-                                    date = state.date
-                                )
-                                EmployeeCard(
-                                    employeeName = emp.name,
-                                    employeeCode = emp.code,
-                                    track = track,
-                                    onToggle = { phase ->
-                                        dashboardViewModel.togglePhase(
-                                            emp.id,
-                                            phase
-                                        )
-                                    },
-                                    onEdit = { phase -> manualTimeDialogData = emp.id to phase },
-                                    onDelete = { employeeToDelete = emp }
-                                )
+                        if (state.activeTab == "inbound") {
+                            // INBOUND CONTENT
+                            val filteredEmps =
+                                if (searchQuery.isBlank()) state.employees else state.employees.filter {
+                                    it.name.contains(
+                                        searchQuery,
+                                        true
+                                    ) || it.code.contains(searchQuery, true)
+                                }
+                            LazyColumn(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(horizontal = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                                contentPadding = PaddingValues(bottom = 12.dp)
+                            ) {
+                                items(filteredEmps, key = { it.id }) { emp ->
+                                    val track = state.tracks[emp.id] ?: EmployeeTrack(
+                                        employeeId = emp.id,
+                                        date = state.date
+                                    )
+                                    EmployeeCard(
+                                        emp.name,
+                                        emp.code,
+                                        track,
+                                        { phase -> dashboardViewModel.togglePhase(emp.id, phase) },
+                                        { p -> manualTimeDialogData = Triple(emp.id, p, false) },
+                                        { employeeToDelete = emp })
+                                }
+                            }
+                        } else {
+                            // OUTBOUND CONTENT (Vehicles)
+                            val filteredVehicles =
+                                if (searchQuery.isBlank()) state.vehicles else state.vehicles.filter {
+                                    it.type.contains(
+                                        searchQuery,
+                                        true
+                                    ) || it.plateNumber.contains(searchQuery, true)
+                                }
+                            LazyColumn(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(horizontal = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                                contentPadding = PaddingValues(bottom = 12.dp)
+                            ) {
+                                items(filteredVehicles, key = { it.id }) { vehicle ->
+                                    val track = state.vehicleTracks[vehicle.id] ?: VehicleTrack(
+                                        vehicleId = vehicle.id,
+                                        date = state.date
+                                    )
+                                    VehicleCard(
+                                        vehicle,
+                                        track,
+                                        { phase ->
+                                            dashboardViewModel.toggleVehiclePhase(
+                                                vehicle.id,
+                                                phase
+                                            )
+                                        },
+                                        { phase ->
+                                            manualTimeDialogData = Triple(vehicle.id, phase, true)
+                                        },
+                                        { vehicleToDelete = vehicle })
+                                }
                             }
                         }
 
-                        // ── FIXED SMALL Summary Card ──
+                        // FIXED Summary Card
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -479,12 +478,19 @@ fun AdminDashboardScreen(
                                 .navigationBarsPadding()
                                 .padding(horizontal = 12.dp, vertical = 8.dp)
                         ) {
-                            SummaryCard(
-                                branchName = state.selectedBranch?.name ?: "",
-                                employees = filteredEmployees,
-                                tracks = state.tracks,
-                                onExportRange = { showExportScreen = true }
-                            )
+                            if (state.activeTab == "inbound") {
+                                SummaryCard(
+                                    state.selectedBranch?.name ?: "",
+                                    state.employees,
+                                    state.tracks,
+                                    { showExportScreen = true })
+                            } else {
+                                VehicleSummaryCard(
+                                    state.selectedBranch?.name ?: "",
+                                    state.vehicles,
+                                    state.vehicleTracks,
+                                    { showExportScreen = true })
+                            }
                         }
                     }
                 }
@@ -492,17 +498,17 @@ fun AdminDashboardScreen(
         }
     }
 
-    // ── Dialogs ──────────────────────────
+    // ── DIALOGS ──
     if (showAddBranchDialog) {
         var branchName by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showAddBranchDialog = false },
-            title = { Text("Add New Branch") },
+            title = { Text("Add Branch") },
             text = {
                 OutlinedTextField(
                     value = branchName,
                     onValueChange = { branchName = it },
-                    label = { Text("Branch Name") },
+                    label = { Text("Name") },
                     modifier = Modifier.fillMaxWidth()
                 )
             },
@@ -513,29 +519,79 @@ fun AdminDashboardScreen(
                             false
                     }
                 }) { Text("Add") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddBranchDialog = false }) { Text("Cancel") }
             }
         )
     }
 
-    if (showDeleteBranchDialog && state.selectedBranch != null) {
+    if (showAddEmployeeDialog) {
+        var empName by remember { mutableStateOf("") }
+        var empCode by remember { mutableStateOf("") }
         AlertDialog(
-            onDismissRequest = { showDeleteBranchDialog = false },
-            title = { Text("Delete Branch") },
-            text = { Text("Are you sure you want to delete branch '${state.selectedBranch?.name}'? This action cannot be undone.") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        dashboardViewModel.deleteBranch(state.selectedBranch!!.id)
-                        showDeleteBranchDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = RedColor)
-                ) { Text("Delete") }
+            onDismissRequest = { showAddEmployeeDialog = false },
+            title = { Text("Add Employee") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = empName,
+                        onValueChange = { empName = it },
+                        label = { Text("Name") },
+                        modifier = Modifier.fillMaxWidth()
+                    ); OutlinedTextField(
+                    value = empCode,
+                    onValueChange = { empCode = it },
+                    label = { Text("Code") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                }
             },
-            dismissButton = {
-                TextButton(onClick = { showDeleteBranchDialog = false }) { Text("Cancel") }
+            confirmButton = {
+                Button(onClick = {
+                    if (empName.isNotBlank()) {
+                        dashboardViewModel.addEmployee(
+                            empName,
+                            empCode,
+                            state.selectedBranch!!.id,
+                            context
+                        ); showAddEmployeeDialog = false
+                    }
+                }) { Text("Add") }
+            }
+        )
+    }
+
+    if (showAddVehicleDialog) {
+        var vType by remember { mutableStateOf("Actros") }
+        var plate by remember { mutableStateOf("") }
+        val types = listOf("Actros", "Axor", "NQR")
+        AlertDialog(
+            onDismissRequest = { showAddVehicleDialog = false },
+            title = { Text("Add Vehicle") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Select Type:", fontSize = 12.sp, color = Color.Gray)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        types.forEach { t ->
+                            Button(
+                                onClick = { vType = t },
+                                colors = ButtonDefaults.buttonColors(containerColor = if (vType == t) NavyBlue else Color.LightGray)
+                            ) { Text(t, fontSize = 11.sp) }
+                        }
+                    }
+                    OutlinedTextField(
+                        value = plate,
+                        onValueChange = { plate = it },
+                        label = { Text("Plate Number") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    if (plate.isNotBlank()) {
+                        dashboardViewModel.addVehicle(vType, plate, context); showAddVehicleDialog =
+                            false
+                    }
+                }) { Text("Add") }
             }
         )
     }
@@ -544,80 +600,37 @@ fun AdminDashboardScreen(
         AlertDialog(
             onDismissRequest = { employeeToDelete = null },
             title = { Text("Delete Employee") },
-            text = { Text("Are you sure you want to delete '${employeeToDelete?.name}'? This action cannot be undone.") },
+            text = { Text("Delete ${employeeToDelete?.name}?") },
             confirmButton = {
                 Button(
                     onClick = {
-                        employeeToDelete?.let { dashboardViewModel.deleteEmployee(it.id) }
-                        employeeToDelete = null
+                        dashboardViewModel.deleteEmployee(employeeToDelete!!.id); employeeToDelete =
+                        null
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = RedColor)
                 ) { Text("Delete") }
-            },
-            dismissButton = {
-                TextButton(onClick = { employeeToDelete = null }) { Text("Cancel") }
             }
         )
     }
 
-    if (showAddEmployeeDialog) {
-        var empName by remember { mutableStateOf("") }
-        var empCode by remember { mutableStateOf("") }
-        var empBranch by remember { mutableStateOf(state.selectedBranch) }
-        var empExpanded by remember { mutableStateOf(false) }
+    if (vehicleToDelete != null) {
         AlertDialog(
-            onDismissRequest = { showAddEmployeeDialog = false },
-            title = { Text("Add New Employee") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
-                        value = empName,
-                        onValueChange = { empName = it },
-                        label = { Text("Name") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = empCode,
-                        onValueChange = { empCode = it },
-                        label = { Text("Code") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Box {
-                        OutlinedButton(
-                            onClick = { empExpanded = true },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(empBranch?.name ?: "Select Branch")
-                            Spacer(Modifier.weight(1f))
-                            Icon(Icons.Default.ArrowDropDown, null)
-                        }
-                        DropdownMenu(
-                            expanded = empExpanded,
-                            onDismissRequest = { empExpanded = false }) {
-                            state.branches.forEach { b ->
-                                DropdownMenuItem(
-                                    text = { Text(b.name) },
-                                    onClick = { empBranch = b; empExpanded = false })
-                            }
-                        }
-                    }
-                }
-            },
+            onDismissRequest = { vehicleToDelete = null },
+            title = { Text("Delete Vehicle") },
+            text = { Text("Delete vehicle ${vehicleToDelete?.plateNumber}?") },
             confirmButton = {
-                Button(onClick = {
-                    if (empName.isNotBlank() && empBranch != null) {
-                        dashboardViewModel.addEmployee(empName, empCode, empBranch!!.id, context)
-                        showAddEmployeeDialog = false
-                    }
-                }) { Text("Add") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddEmployeeDialog = false }) { Text("Cancel") }
+                Button(
+                    onClick = {
+                        dashboardViewModel.deleteVehicle(vehicleToDelete!!.id); vehicleToDelete =
+                        null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = RedColor)
+                ) { Text("Delete") }
             }
         )
     }
 
-    manualTimeDialogData?.let { (empId, phase) ->
+    manualTimeDialogData?.let { (id, phase, isVehicle) ->
         var addMin by remember { mutableStateOf("") }
         var addSec by remember { mutableStateOf("") }
         var startHH by remember { mutableStateOf("") }
@@ -721,10 +734,11 @@ fun AdminDashboardScreen(
             confirmButton = {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = {
-                        dashboardViewModel.resetPhase(
-                            empId,
+                        if (isVehicle) dashboardViewModel.resetVehiclePhase(
+                            id,
                             phase
-                        ); manualTimeDialogData = null
+                        ) else dashboardViewModel.resetPhase(id, phase)
+                        manualTimeDialogData = null
                     }) { Text("Reset", color = RedColor) }
                     Button(onClick = {
                         val mAdd = (addMin.toIntOrNull() ?: 0) * 60 + (addSec.toIntOrNull() ?: 0)
@@ -739,7 +753,7 @@ fun AdminDashboardScreen(
                             }:00 $startAMPM"
                             mEnd = "${endHH.padStart(2, '0')}:${endMM.padStart(2, '0')}:00 $endAMPM"
                         }
-                        dashboardViewModel.applyManualTime(empId, phase, mAdd, mStart, mEnd)
+                        dashboardViewModel.applyManualTime(id, phase, mAdd, mStart, mEnd, isVehicle)
                         manualTimeDialogData = null
                     }) { Text("Apply") }
                 }
@@ -748,118 +762,12 @@ fun AdminDashboardScreen(
     }
 }
 
-@Composable
-fun RegisterUserDialog(
-    onDismiss: () -> Unit,
-    onRegister: (String, String, String, String, String) -> Unit,
-    availableBranches: List<Branch>,
-    currentBranch: Branch?
-) {
-    var regName by remember { mutableStateOf("") }
-    var regEmail by remember { mutableStateOf("") }
-    var regPassword by remember { mutableStateOf("") }
-    var regRole by remember { mutableStateOf("user") }
-    var regBranch by remember { mutableStateOf(currentBranch) }
-    var roleExpanded by remember { mutableStateOf(false) }
-    var branchExpanded by remember { mutableStateOf(false) }
-    var showRegPassword by remember { mutableStateOf(false) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Create New User Account") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(
-                    value = regName,
-                    onValueChange = { regName = it },
-                    label = { Text("Full Name") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = regEmail,
-                    onValueChange = { regEmail = it },
-                    label = { Text("Email") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = regPassword,
-                    onValueChange = { regPassword = it },
-                    label = { Text("Password") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    visualTransformation = if (showRegPassword) VisualTransformation.None else PasswordVisualTransformation(),
-                    trailingIcon = {
-                        IconButton(onClick = { showRegPassword = !showRegPassword }) {
-                            Icon(
-                                if (showRegPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                null,
-                                tint = Color.Gray
-                            )
-                        }
-                    }
-                )
-                Box {
-                    OutlinedButton(
-                        onClick = { roleExpanded = true },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(if (regRole == "admin") "Admin" else "Employee")
-                        Spacer(Modifier.weight(1f))
-                        Icon(Icons.Default.ArrowDropDown, null)
-                    }
-                    DropdownMenu(
-                        expanded = roleExpanded,
-                        onDismissRequest = { roleExpanded = false }) {
-                        DropdownMenuItem(
-                            text = { Text("Employee") },
-                            onClick = { regRole = "user"; roleExpanded = false })
-                        DropdownMenuItem(
-                            text = { Text("Admin") },
-                            onClick = { regRole = "admin"; roleExpanded = false })
-                    }
-                }
-                Box {
-                    OutlinedButton(
-                        onClick = { branchExpanded = true },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(regBranch?.name ?: "Select Branch")
-                        Spacer(Modifier.weight(1f))
-                        Icon(Icons.Default.ArrowDropDown, null)
-                    }
-                    DropdownMenu(
-                        expanded = branchExpanded,
-                        onDismissRequest = { branchExpanded = false }) {
-                        availableBranches.forEach { b ->
-                            DropdownMenuItem(
-                                text = { Text(b.name) },
-                                onClick = { regBranch = b; branchExpanded = false })
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (regName.isNotBlank() && regEmail.isNotBlank() && regPassword.isNotBlank() && regBranch != null) {
-                        onRegister(regEmail, regPassword, regName, regRole, regBranch!!.id)
-                    }
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = NavyBlue)
-            ) { Text("Create") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
-}
+// ── Vehicle UI Components ──────────────────
 
 @Composable
-fun EmployeeCard(
-    employeeName: String,
-    employeeCode: String,
-    track: EmployeeTrack,
+fun VehicleCard(
+    vehicle: Vehicle,
+    track: VehicleTrack,
     onToggle: (String) -> Unit,
     onEdit: (String) -> Unit,
     onDelete: () -> Unit
@@ -876,18 +784,23 @@ fun EmployeeCard(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(NavyBlue.copy(0.1f)),
-                    contentAlignment = Alignment.Center
+                        .background(NavyBlue.copy(0.1f)), contentAlignment = Alignment.Center
                 ) {
-                    val initials = employeeName.split(" ").filter { it.isNotBlank() }.take(2)
-                        .map { it.firstOrNull()?.uppercase() ?: "" }.joinToString("")
-                    Text(initials, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = NavyBlue)
+                    Icon(
+                        Icons.Default.LocalShipping,
+                        null,
+                        tint = NavyBlue,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
                 Spacer(Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(employeeName, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
+                        Text(vehicle.type, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        IconButton(
+                            onClick = onDelete,
+                            modifier = Modifier.size(24.dp)
+                        ) {
                             Icon(
                                 Icons.Default.Delete,
                                 null,
@@ -896,10 +809,10 @@ fun EmployeeCard(
                             )
                         }
                     }
-                    Text("Code: $employeeCode", color = Color.Gray, fontSize = 11.sp)
+                    Text("Plate: ${vehicle.plateNumber}", color = Color.Gray, fontSize = 11.sp)
                 }
                 Text(
-                    formatDuration(track.totalWHSeconds),
+                    formatDuration(track.totalSeconds),
                     fontWeight = FontWeight.Bold,
                     color = NavyBlue,
                     fontSize = 12.sp
@@ -910,58 +823,46 @@ fun EmployeeCard(
             Spacer(Modifier.height(10.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                PhaseBtn(
-                    "preparation",
-                    "Prep",
-                    track.preparation,
+                VPhaseBtn(
+                    "Waiting",
+                    track.waiting,
                     Modifier.weight(1f),
-                    { onToggle("preparation") },
-                    { onEdit("preparation") })
-                PhaseBtn(
-                    "cycleCount",
-                    "Cycle",
-                    track.cycleCount,
+                    { onToggle("waiting") },
+                    { onEdit("waiting") })
+                VPhaseBtn(
+                    "Offload",
+                    track.offloading,
                     Modifier.weight(1f),
-                    { onToggle("cycleCount") },
-                    { onEdit("cycleCount") })
-                PhaseBtn(
-                    "loading",
-                    "Load",
-                    track.loading,
-                    Modifier.weight(1f),
-                    { onToggle("loading") },
-                    { onEdit("loading") })
+                    { onToggle("offloading") },
+                    { onEdit("offloading") })
             }
         }
     }
 }
 
 @Composable
-fun PhaseBtn(
-    key: String,
+fun VPhaseBtn(
     label: String,
     data: PhaseData,
     modifier: Modifier,
-    onToggle: () -> Unit,
+    onClick: () -> Unit,
     onEdit: () -> Unit
 ) {
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Gray, maxLines = 1)
+        Text(label, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
         Spacer(Modifier.height(4.dp))
         Button(
-            onClick = onToggle,
+            onClick = onClick,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(34.dp),
-            contentPadding = PaddingValues(0.dp),
             shape = RoundedCornerShape(8.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (data.isActive) GreenColor else NavyBlue.copy(
-                    0.8f
-                )
-            )
+                containerColor = if (data.isActive) GreenColor else NavyBlue.copy(0.8f)
+            ),
+            contentPadding = PaddingValues(0.dp)
         ) {
             Text(if (data.isActive) "OUT" else "IN", fontSize = 11.sp, fontWeight = FontWeight.Bold)
         }
@@ -979,15 +880,138 @@ fun PhaseBtn(
                     fontWeight = FontWeight.Bold,
                     color = NavyBlue
                 )
-                if (data.isActive) Text(
-                    "Start: ${data.currentStartTime}",
-                    fontSize = 8.sp,
-                    color = GreenColor
-                )
+                if (data.isActive) {
+                    Text("Start: ${data.currentStartTime}", fontSize = 8.sp, color = GreenColor)
+                } else {
+                    data.history.lastOrNull()?.let {
+                        Text("End: ${it.endTime}", fontSize = 8.sp, color = Color.Gray)
+                    }
+                    Text("Tap to edit", fontSize = 8.sp, color = Color.LightGray)
+                }
             }
         }
     }
 }
+
+@Composable
+fun VehicleSummaryCard(
+    branchName: String,
+    vehicles: List<Vehicle>,
+    tracks: Map<String, VehicleTrack>,
+    onExportRange: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = NavyBlue),
+        elevation = CardDefaults.cardElevation(4.dp)
+    ) {
+        Column(modifier = Modifier.padding(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    "OUTBOUND SUMMARY - ${branchName.uppercase()}",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 10.sp
+                )
+                IconButton(onClick = onExportRange, modifier = Modifier.size(24.dp)) {
+                    Icon(
+                        Icons.Default.Share,
+                        null,
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            Row(modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 2.dp)) {
+                Text(
+                    "Vehicle",
+                    color = Color.White.copy(0.6f),
+                    fontSize = 9.sp,
+                    modifier = Modifier.weight(1.2f)
+                )
+                Text(
+                    "Waiting",
+                    color = Color.White.copy(0.6f),
+                    fontSize = 9.sp,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    "Offload",
+                    color = Color.White.copy(0.6f),
+                    fontSize = 9.sp,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    "Total",
+                    color = Color.White.copy(0.6f),
+                    fontSize = 9.sp,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center
+                )
+            }
+            HorizontalDivider(color = Color.White.copy(0.1f))
+            val scrollState = rememberScrollState()
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 80.dp)
+                    .verticalScroll(scrollState)
+            ) {
+                vehicles.forEach { v ->
+                    val t = tracks[v.id] ?: return@forEach
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "${v.type} (${v.plateNumber})",
+                            color = Color.White,
+                            fontSize = 9.sp,
+                            modifier = Modifier.weight(1.2f),
+                            maxLines = 1
+                        )
+                        Text(
+                            formatDuration(t.waiting.accumulatedSeconds),
+                            color = Color.White,
+                            fontSize = 8.sp,
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            formatDuration(t.offloading.accumulatedSeconds),
+                            color = Color.White,
+                            fontSize = 8.sp,
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            formatDuration(t.totalSeconds),
+                            color = AmberColor,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ── REUSED Existing Components ──────────────────
 
 @Composable
 fun SummaryCard(
@@ -1014,7 +1038,10 @@ fun SummaryCard(
                     fontWeight = FontWeight.Bold,
                     fontSize = 10.sp
                 )
-                IconButton(onClick = onExportRange, modifier = Modifier.size(24.dp)) {
+                IconButton(
+                    onClick = onExportRange,
+                    modifier = Modifier.size(24.dp)
+                ) {
                     Icon(
                         Icons.Default.Share,
                         null,
@@ -1165,6 +1192,242 @@ fun MetricCard(modifier: Modifier, value: String, label: String, color: Color) {
                 textAlign = TextAlign.Center
             )
             Text(label, fontSize = 9.sp, color = Color.Gray)
+        }
+    }
+}
+
+@Composable
+fun RegisterUserDialog(
+    onDismiss: () -> Unit,
+    onRegister: (String, String, String, String, String) -> Unit,
+    availableBranches: List<Branch>,
+    currentBranch: Branch?
+) {
+    var regName by remember { mutableStateOf("") }
+    var regEmail by remember { mutableStateOf("") }
+    var regPassword by remember { mutableStateOf("") }
+    var regRole by remember { mutableStateOf("user") }
+    var regBranch by remember { mutableStateOf(currentBranch) }
+    var roleExpanded by remember { mutableStateOf(false) }
+    var branchExpanded by remember { mutableStateOf(false) }
+    var showRegPassword by remember { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Create User") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = regName,
+                    onValueChange = { regName = it },
+                    label = { Text("Full Name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                ); OutlinedTextField(
+                value = regEmail,
+                onValueChange = { regEmail = it },
+                label = { Text("Email") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            ); OutlinedTextField(
+                value = regPassword,
+                onValueChange = { regPassword = it },
+                label = { Text("Password") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                visualTransformation = if (showRegPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(onClick = {
+                        showRegPassword = !showRegPassword
+                    }) {
+                        Icon(
+                            if (showRegPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            null,
+                            tint = Color.Gray
+                        )
+                    }
+                }); Box {
+                OutlinedButton(
+                    onClick = { roleExpanded = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(if (regRole == "admin") "Admin" else "Employee"); Spacer(Modifier.weight(1f)); Icon(
+                    Icons.Default.ArrowDropDown,
+                    null
+                )
+                }; DropdownMenu(
+                expanded = roleExpanded,
+                onDismissRequest = { roleExpanded = false }) {
+                DropdownMenuItem(
+                    text = { Text("Employee") },
+                    onClick = { regRole = "user"; roleExpanded = false }); DropdownMenuItem(
+                text = { Text("Admin") },
+                onClick = { regRole = "admin"; roleExpanded = false })
+            }
+            }; Box {
+                OutlinedButton(
+                    onClick = { branchExpanded = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        regBranch?.name ?: "Select Branch"
+                    ); Spacer(Modifier.weight(1f)); Icon(Icons.Default.ArrowDropDown, null)
+                }; DropdownMenu(
+                expanded = branchExpanded,
+                onDismissRequest = { branchExpanded = false }) {
+                availableBranches.forEach { b ->
+                    DropdownMenuItem(
+                        text = { Text(b.name) },
+                        onClick = { regBranch = b; branchExpanded = false })
+                }
+            }
+            }
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                if (regName.isNotBlank() && regEmail.isNotBlank() && regPassword.isNotBlank() && regBranch != null) onRegister(
+                    regEmail,
+                    regPassword,
+                    regName,
+                    regRole,
+                    regBranch!!.id
+                )
+            }, colors = ButtonDefaults.buttonColors(containerColor = NavyBlue)) { Text("Create") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } })
+}
+
+@Composable
+fun EmployeeCard(
+    employeeName: String,
+    employeeCode: String,
+    track: EmployeeTrack,
+    onToggle: (String) -> Unit,
+    onEdit: (String) -> Unit,
+    onDelete: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(2.dp)
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(NavyBlue.copy(0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    val initials = employeeName.split(" ").filter { it.isNotBlank() }.take(2)
+                        .map { it.firstOrNull()?.uppercase() ?: "" }.joinToString(""); Text(
+                    initials,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = NavyBlue
+                )
+                }; Spacer(Modifier.width(10.dp)); Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(employeeName, fontWeight = FontWeight.Bold, fontSize = 14.sp); IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Delete,
+                        null,
+                        tint = RedColor.copy(0.5f),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                }; Text("Code: $employeeCode", color = Color.Gray, fontSize = 11.sp)
+            }; Text(
+                formatDuration(track.totalWHSeconds),
+                fontWeight = FontWeight.Bold,
+                color = NavyBlue,
+                fontSize = 12.sp
+            )
+            }; Spacer(Modifier.height(10.dp)); HorizontalDivider(color = NavyBlue.copy(0.05f)); Spacer(
+            Modifier.height(10.dp)
+        ); Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            PhaseBtn(
+                "preparation",
+                "Prep",
+                track.preparation,
+                Modifier.weight(1f),
+                { onToggle("preparation") },
+                { onEdit("preparation") }); PhaseBtn(
+            "cycleCount",
+            "Cycle",
+            track.cycleCount,
+            Modifier.weight(1f),
+            { onToggle("cycleCount") },
+            { onEdit("cycleCount") }); PhaseBtn(
+            "loading",
+            "Load",
+            track.loading,
+            Modifier.weight(1f),
+            { onToggle("loading") },
+            { onEdit("loading") })
+        }
+        }
+    }
+}
+
+@Composable
+fun PhaseBtn(
+    key: String,
+    label: String,
+    data: PhaseData,
+    modifier: Modifier,
+    onToggle: () -> Unit,
+    onEdit: () -> Unit
+) {
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(label, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Gray, maxLines = 1)
+        Spacer(Modifier.height(4.dp))
+        Button(
+            onClick = onToggle,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(34.dp),
+            contentPadding = PaddingValues(0.dp),
+            shape = RoundedCornerShape(8.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (data.isActive) GreenColor else NavyBlue.copy(0.8f)
+            )
+        ) {
+            Text(if (data.isActive) "OUT" else "IN", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.height(4.dp))
+        Surface(
+            modifier = Modifier
+                .clip(RoundedCornerShape(4.dp))
+                .clickable { onEdit() },
+            color = Color.Transparent
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    formatDuration(data.accumulatedSeconds),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = NavyBlue
+                )
+                if (data.isActive) {
+                    Text("Start: ${data.currentStartTime}", fontSize = 8.sp, color = GreenColor)
+                } else {
+                    data.history.lastOrNull()?.let {
+                        Text("End: ${it.endTime}", fontSize = 8.sp, color = Color.Gray)
+                    }
+                    Text("Tap to edit", fontSize = 8.sp, color = Color.LightGray)
+                }
+            }
         }
     }
 }

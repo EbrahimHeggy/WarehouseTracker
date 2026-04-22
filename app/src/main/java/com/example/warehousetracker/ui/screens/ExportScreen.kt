@@ -98,7 +98,7 @@ fun ExportScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    "Export Report",
+                    "Export Report (${state.activeTab.uppercase()})",
                     color = Color.White,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold
@@ -299,7 +299,7 @@ fun ExportScreen(
                             color = NavyBlue
                         )
                         Text(
-                            "✓ Summary per employee (total hours)",
+                            if (state.activeTab == "inbound") "✓ Summary per employee (total hours)" else "✓ Summary per vehicle (total hours)",
                             fontSize = 12.sp,
                             color = Color.Gray
                         )
@@ -310,7 +310,7 @@ fun ExportScreen(
                             color = Color.Gray
                         )
                         Text(
-                            "✓ All phases (Prep, Cycle, Loading)",
+                            if (state.activeTab == "inbound") "✓ All phases (Prep, Cycle, Loading)" else "✓ All phases (Waiting, Offloading)",
                             fontSize = 12.sp,
                             color = Color.Gray
                         )
@@ -343,8 +343,10 @@ fun ExportScreen(
                     } else {
                         Icon(Icons.Default.FileDownload, null, modifier = Modifier.size(22.dp))
                         Spacer(Modifier.width(10.dp))
+                        val labelPrefix =
+                            if (state.activeTab == "inbound") "Employees" else "Vehicles"
                         Text(
-                            if (exportMode == "today") "Export Today" else "Export $startDate → $endDate",
+                            if (exportMode == "today") "Export Today's $labelPrefix" else "Export $startDate → $endDate",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold
                         )

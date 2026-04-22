@@ -3,6 +3,8 @@ package com.example.warehousetracker.data.repository
 import com.example.warehousetracker.data.model.Employee
 import com.example.warehousetracker.data.model.EmployeeTrack
 import com.example.warehousetracker.data.model.PhaseData
+import com.example.warehousetracker.data.model.Vehicle
+import com.example.warehousetracker.data.model.VehicleTrack
 import com.example.warehousetracker.data.model.WorkSession
 import com.google.firebase.firestore.SetOptions
 import com.google.firebase.firestore.ktx.firestore
@@ -27,26 +29,30 @@ class TrackingRepository {
         db.collection("tracking").document(date)
             .collection("employees").document(empId)
 
+    private fun vehicleTrackRef(date: String, vehicleId: String) =
+        db.collection("tracking").document(date)
+            .collection("vehicles").document(vehicleId)
+
+    private fun parsePhase(map: Map<String, Any>?): PhaseData {
+        if (map == null) return PhaseData()
+        val history = (map["history"] as? List<Map<String, Any>>)?.map { s ->
+            WorkSession(
+                startTime = s["startTime"] as? String ?: "",
+                endTime = s["endTime"] as? String ?: "",
+                durationSeconds = (s["durationSeconds"] as? Long)?.toInt() ?: 0
+            )
+        } ?: emptyList()
+        return PhaseData(
+            history = history,
+            currentStartTime = map["currentStartTime"] as? String ?: "",
+            isActive = map["isActive"] as? Boolean ?: false
+        )
+    }
+
     suspend fun getTrack(empId: String, date: String): EmployeeTrack {
         return try {
             val doc = trackRef(date, empId).get().await()
             if (!doc.exists()) return EmployeeTrack(employeeId = empId, date = date)
-
-            fun parsePhase(map: Map<String, Any>?): PhaseData {
-                if (map == null) return PhaseData()
-                val history = (map["history"] as? List<Map<String, Any>>)?.map { s ->
-                    WorkSession(
-                        startTime = s["startTime"] as? String ?: "",
-                        endTime = s["endTime"] as? String ?: "",
-                        durationSeconds = (s["durationSeconds"] as? Long)?.toInt() ?: 0
-                    )
-                } ?: emptyList()
-                return PhaseData(
-                    history = history,
-                    currentStartTime = map["currentStartTime"] as? String ?: "",
-                    isActive = map["isActive"] as? Boolean ?: false
-                )
-            }
 
             EmployeeTrack(
                 employeeId = empId,
@@ -117,15 +123,17 @@ class TrackingRepository {
     }
 
     suspend fun applyManualTime(
-        empId: String, date: String, phase: String,
-        secondsToAdd: Int, manualStart: String?, manualEnd: String?
+        id: String, date: String, phase: String,
+        secondsToAdd: Int, manualStart: String?, manualEnd: String?,
+        isVehicle: Boolean = false
     ): Result<Unit> {
         return try {
-            val ref = trackRef(date, empId)
+            val ref = if (isVehicle) vehicleTrackRef(date, id) else trackRef(date, id)
             val doc = ref.get().await()
             val phaseMap = (doc.get(phase) as? Map<String, Any>)?.toMutableMap() ?: mutableMapOf()
-            val history =
-                (phaseMap["history"] as? List<Map<String, Any>>)?.toMutableList() ?: mutableListOf()
+
+            // Replacement logic: history is cleared and replaced with the manual entry
+            val history = mutableListOf<Map<String, Any>>()
 
             if (manualStart != null && manualEnd != null) {
                 val diff = try {
@@ -141,17 +149,40 @@ class TrackingRepository {
                     )
                 )
             } else if (secondsToAdd > 0) {
+                val now = nowTime()
                 history.add(
                     mapOf(
                         "startTime" to "Manual",
-                        "endTime" to "Manual",
+                        "endTime" to now,
                         "durationSeconds" to secondsToAdd
                     )
                 )
             }
 
             phaseMap["history"] = history
+            phaseMap["isActive"] = false
+            phaseMap["currentStartTime"] = ""
+
             ref.set(mapOf(phase to phaseMap), SetOptions.merge()).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun resetVehiclePhase(vehicleId: String, date: String, phase: String): Result<Unit> {
+        return try {
+            val ref = vehicleTrackRef(date, vehicleId)
+            ref.set(
+                mapOf(
+                    phase to mapOf(
+                        "history" to emptyList<Any>(),
+                        "isActive" to false,
+                        "currentStartTime" to ""
+                    )
+                ),
+                SetOptions.merge()
+            ).await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -165,6 +196,73 @@ class TrackingRepository {
         val deferredTracks = employees.map { emp ->
             async {
                 emp.id to getTrack(emp.id, date)
+            }
+        }
+        deferredTracks.awaitAll().toMap()
+    }
+
+    // ── Vehicle Tracking ──────────────────
+
+    suspend fun getVehicleTrack(vehicleId: String, date: String): VehicleTrack {
+        return try {
+            val doc = vehicleTrackRef(date, vehicleId).get().await()
+            if (!doc.exists()) return VehicleTrack(vehicleId = vehicleId, date = date)
+
+            VehicleTrack(
+                vehicleId = vehicleId,
+                date = date,
+                waiting = parsePhase(doc.get("waiting") as? Map<String, Any>),
+                offloading = parsePhase(doc.get("offloading") as? Map<String, Any>)
+            )
+        } catch (e: Exception) {
+            VehicleTrack(vehicleId = vehicleId, date = date)
+        }
+    }
+
+    suspend fun toggleVehiclePhase(vehicleId: String, date: String, phase: String): Result<Unit> {
+        return try {
+            val ref = vehicleTrackRef(date, vehicleId)
+            val doc = ref.get().await()
+            val now = nowTime()
+            val phaseMap = (doc.get(phase) as? Map<String, Any>)?.toMutableMap() ?: mutableMapOf()
+            val isActive = phaseMap["isActive"] as? Boolean ?: false
+
+            if (!isActive) {
+                phaseMap["isActive"] = true
+                phaseMap["currentStartTime"] = now
+            } else {
+                val startTime = phaseMap["currentStartTime"] as? String ?: ""
+                val diff = try {
+                    ((timeFormatter.parse(now)!!.time - timeFormatter.parse(startTime)!!.time) / 1000).toInt()
+                } catch (e: Exception) {
+                    0
+                }
+
+                val session =
+                    mapOf("startTime" to startTime, "endTime" to now, "durationSeconds" to diff)
+                val history = (phaseMap["history"] as? List<Map<String, Any>>)?.toMutableList()
+                    ?: mutableListOf()
+                history.add(session)
+
+                phaseMap["isActive"] = false
+                phaseMap["currentStartTime"] = ""
+                phaseMap["history"] = history
+            }
+
+            ref.set(mapOf(phase to phaseMap), SetOptions.merge()).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getVehicleTracksForBranch(
+        vehicles: List<Vehicle>,
+        date: String
+    ): Map<String, VehicleTrack> = coroutineScope {
+        val deferredTracks = vehicles.map { v ->
+            async {
+                v.id to getVehicleTrack(v.id, date)
             }
         }
         deferredTracks.awaitAll().toMap()
@@ -190,6 +288,27 @@ class TrackingRepository {
                             it.second.loading.history.isNotEmpty()
                 }
                 emp.id to empTracks
+            }
+        }
+        deferredList.awaitAll().toMap()
+    }
+
+    suspend fun getVehicleTracksForDateRange(
+        vehicles: List<Vehicle>,
+        startDate: String,
+        endDate: String
+    ): Map<String, List<Pair<String, VehicleTrack>>> = coroutineScope {
+        val dates = getDatesBetween(startDate, endDate)
+        val deferredList = vehicles.map { v ->
+            async {
+                val vTracks = dates.map { date ->
+                    async { date to getVehicleTrack(v.id, date) }
+                }.awaitAll().filter {
+                    it.second.totalSeconds > 0 ||
+                            it.second.waiting.history.isNotEmpty() ||
+                            it.second.offloading.history.isNotEmpty()
+                }
+                v.id to vTracks
             }
         }
         deferredList.awaitAll().toMap()

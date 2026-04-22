@@ -47,3 +47,22 @@ data class EmployeeTrack(
                     cycleCount.accumulatedSeconds +
                     loading.accumulatedSeconds
 }
+
+// ── Outbound (Vehicles) ──────────────────
+
+data class Vehicle(
+    val id: String = "",
+    val type: String = "", // "Actros", "Axor", "NQR"
+    val plateNumber: String = "", // Used to distinguish between same-type cars
+    val branchId: String = ""
+)
+
+data class VehicleTrack(
+    val vehicleId: String = "",
+    val date: String = "",
+    val waiting: PhaseData = PhaseData(),
+    val offloading: PhaseData = PhaseData()
+) {
+    val totalSeconds: Int
+        get() = waiting.accumulatedSeconds + offloading.accumulatedSeconds
+}
