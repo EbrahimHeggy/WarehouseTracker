@@ -12,15 +12,19 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AccountCircle
@@ -183,9 +187,6 @@ fun AdminDashboardScreen(
         return
     }
 
-
-
-
     val filteredEmployees = remember(state.employees, searchQuery) {
         if (searchQuery.isBlank()) state.employees
         else state.employees.filter {
@@ -198,15 +199,14 @@ fun AdminDashboardScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(NavyBlue)
-            .statusBarsPadding()
     ) {
-        // ── Header المطور ──────────────────────────
+        // ── Header (with status bar padding) ──
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 16.dp, end = 16.dp, bottom = 20.dp, top = 48.dp)
+                .statusBarsPadding()
+                .padding(start = 16.dp, end = 16.dp, bottom = 12.dp, top = 16.dp)
         ) {
-            // العنوان في الأعلى
             Column(modifier = Modifier.align(Alignment.TopStart)) {
                 Text(
                     "Warehouse Manager",
@@ -221,7 +221,6 @@ fun AdminDashboardScreen(
                 )
             }
 
-            // الأزرار في الأسفل اليمين
             Row(modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(top = 24.dp)) {
@@ -237,39 +236,41 @@ fun AdminDashboardScreen(
                 IconButton(onClick = { authViewModel.logout() }) {
                     Icon(Icons.AutoMirrored.Filled.Logout, null, tint = Color.White)
                 }
-
             }
         }
 
         Card(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(bottom = 16.dp),
+            modifier = Modifier.fillMaxSize(),
             shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
             colors = CardDefaults.cardColors(containerColor = LightBg)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
 
-                // ── Branch Selector ──────────────────
-                Card(
+                // ── FIXED Top Section: Branch + Search + Metrics ──
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(4.dp)
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
-                    Box(modifier = Modifier.fillMaxWidth()) {
+                    // Branch Selector
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(2.dp)
+                    ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { branchDropdownExpanded = true }
-                                .padding(16.dp),
+                                .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(40.dp)
+                                    .size(36.dp)
                                     .background(NavyBlue.copy(0.1f), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -277,31 +278,31 @@ fun AdminDashboardScreen(
                                     Icons.Default.LocationOn,
                                     null,
                                     tint = NavyBlue,
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
-                            Spacer(Modifier.width(16.dp))
+                            Spacer(Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Current Location", fontSize = 12.sp, color = Color.Gray)
+                                Text("Current Location", fontSize = 10.sp, color = Color.Gray)
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
                                         state.selectedBranch?.name ?: "Select Branch",
-                                        fontSize = 18.sp,
+                                        fontSize = 16.sp,
                                         color = NavyBlue,
-                                        fontWeight = FontWeight.ExtraBold
+                                        fontWeight = FontWeight.Bold
                                     )
                                     if (state.selectedBranch != null) {
                                         IconButton(
                                             onClick = { showDeleteBranchDialog = true },
                                             modifier = Modifier
-                                                .size(24.dp)
-                                                .padding(start = 8.dp)
+                                                .size(20.dp)
+                                                .padding(start = 4.dp)
                                         ) {
                                             Icon(
                                                 Icons.Default.Delete,
                                                 null,
                                                 tint = RedColor.copy(0.6f),
-                                                modifier = Modifier.size(18.dp)
+                                                modifier = Modifier.size(14.dp)
                                             )
                                         }
                                     }
@@ -357,13 +358,46 @@ fun AdminDashboardScreen(
                             }
                         }
                     }
-                }
 
-                if (state.isLoading) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = NavyBlue)
-                    }
-                } else {
+                    // Search Bar
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        placeholder = { Text("Search by name or code...", fontSize = 13.sp) },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Search,
+                                null,
+                                tint = Color.Gray,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { searchQuery = "" }) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        null,
+                                        tint = Color.Gray,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White,
+                            focusedBorderColor = NavyBlue,
+                            unfocusedBorderColor = Color.Transparent
+                        ),
+                        singleLine = true
+                    )
+
+                    // Metrics Row
                     val activeCount = filteredEmployees.count { emp ->
                         val t = state.tracks[emp.id] ?: return@count false
                         t.preparation.isActive || t.cycleCount.isActive || t.loading.isActive
@@ -371,112 +405,75 @@ fun AdminDashboardScreen(
                     val totalSeconds =
                         filteredEmployees.sumOf { state.tracks[it.id]?.totalWHSeconds ?: 0 }
 
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        contentPadding = PaddingValues(bottom = 24.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // Search Bar
-                        item {
-                            OutlinedTextField(
-                                value = searchQuery,
-                                onValueChange = { searchQuery = it },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                                placeholder = {
-                                    Text(
-                                        "Search by name or code...",
-                                        fontSize = 14.sp
-                                    )
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Default.Search,
-                                        contentDescription = null,
-                                        tint = Color.Gray
-                                    )
-                                },
-                                trailingIcon = {
-                                    if (searchQuery.isNotEmpty()) {
-                                        IconButton(onClick = { searchQuery = "" }) {
-                                            Icon(
-                                                Icons.Default.Close,
-                                                contentDescription = null,
-                                                tint = Color.Gray
-                                            )
-                                        }
-                                    }
-                                },
-                                shape = RoundedCornerShape(12.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedContainerColor = Color.White,
-                                    unfocusedContainerColor = Color.White,
-                                    focusedBorderColor = NavyBlue,
-                                    unfocusedBorderColor = Color.Transparent
-                                ),
-                                singleLine = true
-                            )
-                        }
+                        MetricCard(
+                            Modifier.weight(1f),
+                            "${filteredEmployees.size}",
+                            "Total",
+                            NavyBlue
+                        )
+                        MetricCard(Modifier.weight(1f), "$activeCount", "Active", GreenColor)
+                        MetricCard(
+                            Modifier.weight(1f),
+                            formatDuration(totalSeconds),
+                            "Time",
+                            AmberColor
+                        )
+                    }
+                }
 
-                        // Metrics
-                        item {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                MetricCard(
-                                    Modifier.weight(1f),
-                                    "${filteredEmployees.size}",
-                                    "Employees",
-                                    NavyBlue
+                if (state.isLoading) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = NavyBlue)
+                    }
+                } else {
+                    // Root Column for List + Fixed Summary
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        // Scrollable List
+                        LazyColumn(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            contentPadding = PaddingValues(bottom = 12.dp)
+                        ) {
+                            items(filteredEmployees, key = { it.id }) { emp ->
+                                val track = state.tracks[emp.id] ?: EmployeeTrack(
+                                    employeeId = emp.id,
+                                    date = state.date
                                 )
-                                MetricCard(
-                                    Modifier.weight(1f),
-                                    "$activeCount",
-                                    "Active",
-                                    GreenColor
-                                )
-                                MetricCard(
-                                    Modifier.weight(1f),
-                                    formatDuration(totalSeconds),
-                                    "Total Time",
-                                    AmberColor
+                                EmployeeCard(
+                                    employeeName = emp.name,
+                                    employeeCode = emp.code,
+                                    track = track,
+                                    onToggle = { phase ->
+                                        dashboardViewModel.togglePhase(
+                                            emp.id,
+                                            phase
+                                        )
+                                    },
+                                    onEdit = { phase -> manualTimeDialogData = emp.id to phase },
+                                    onDelete = { employeeToDelete = emp }
                                 )
                             }
                         }
 
-                        // Employee Cards
-                        items(filteredEmployees, key = { it.id }) { emp ->
-                            val track = state.tracks[emp.id] ?: EmployeeTrack(
-                                employeeId = emp.id,
-                                date = state.date
-                            )
-                            EmployeeCard(
-                                employeeName = emp.name,
-                                employeeCode = emp.code,
-                                track = track,
-                                onToggle = { phase ->
-                                    dashboardViewModel.togglePhase(
-                                        emp.id,
-                                        phase
-                                    )
-                                },
-                                onEdit = { phase -> manualTimeDialogData = emp.id to phase },
-                                onDelete = { employeeToDelete = emp }
-                            )
-                        }
-
-                        // Summary
-                        item {
+                        // ── FIXED SMALL Summary Card ──
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(LightBg)
+                                .navigationBarsPadding()
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
                             SummaryCard(
                                 branchName = state.selectedBranch?.name ?: "",
                                 employees = filteredEmployees,
                                 tracks = state.tracks,
-                                onExport = { dashboardViewModel.exportCSV(context) },
-                                onExportRange = { showExportScreen = true }  // ← ضيف ده
+                                onExportRange = { showExportScreen = true }
                             )
                         }
                     }
@@ -508,9 +505,7 @@ fun AdminDashboardScreen(
                 }) { Text("Add") }
             },
             dismissButton = {
-                TextButton(onClick = {
-                    showAddBranchDialog = false
-                }) { Text("Cancel") }
+                TextButton(onClick = { showAddBranchDialog = false }) { Text("Cancel") }
             }
         )
     }
@@ -607,9 +602,7 @@ fun AdminDashboardScreen(
                 }) { Text("Add") }
             },
             dismissButton = {
-                TextButton(onClick = {
-                    showAddEmployeeDialog = false
-                }) { Text("Cancel") }
+                TextButton(onClick = { showAddEmployeeDialog = false }) { Text("Cancel") }
             }
         )
     }
@@ -797,8 +790,6 @@ fun RegisterUserDialog(
                         }
                     }
                 )
-
-                // Role
                 Box {
                     OutlinedButton(
                         onClick = { roleExpanded = true },
@@ -819,8 +810,6 @@ fun RegisterUserDialog(
                             onClick = { regRole = "admin"; roleExpanded = false })
                     }
                 }
-
-                // Branch
                 Box {
                     OutlinedButton(
                         onClick = { branchExpanded = true },
@@ -856,7 +845,6 @@ fun RegisterUserDialog(
     )
 }
 
-// ── Employee Card ────────────────────────
 @Composable
 fun EmployeeCard(
     employeeName: String,
@@ -872,67 +860,65 @@ fun EmployeeCard(
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(40.dp)
                         .clip(CircleShape)
                         .background(NavyBlue.copy(0.1f)),
                     contentAlignment = Alignment.Center
                 ) {
                     val initials = employeeName.split(" ").filter { it.isNotBlank() }.take(2)
                         .map { it.firstOrNull()?.uppercase() ?: "" }.joinToString("")
-                    Text(initials, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = NavyBlue)
+                    Text(initials, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = NavyBlue)
                 }
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(employeeName, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                        IconButton(onClick = onDelete) {
+                        Text(employeeName, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
                             Icon(
                                 Icons.Default.Delete,
                                 null,
-                                tint = RedColor.copy(0.6f),
-                                modifier = Modifier.size(18.dp)
+                                tint = RedColor.copy(0.5f),
+                                modifier = Modifier.size(16.dp)
                             )
                         }
                     }
-                    Text("Code: $employeeCode", color = Color.Gray, fontSize = 12.sp)
+                    Text("Code: $employeeCode", color = Color.Gray, fontSize = 11.sp)
                 }
                 Text(
-                    "Total: ${formatDuration(track.totalWHSeconds)}",
+                    formatDuration(track.totalWHSeconds),
                     fontWeight = FontWeight.Bold,
                     color = NavyBlue,
-                    fontSize = 13.sp
+                    fontSize = 12.sp
                 )
             }
-
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(10.dp))
             HorizontalDivider(color = NavyBlue.copy(0.05f))
-            Spacer(Modifier.height(12.dp))
-
+            Spacer(Modifier.height(10.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 PhaseBtn(
                     "preparation",
-                    "Prep & Check",
+                    "Prep",
                     track.preparation,
                     Modifier.weight(1f),
                     { onToggle("preparation") },
                     { onEdit("preparation") })
                 PhaseBtn(
                     "cycleCount",
-                    "Cycle Count",
+                    "Cycle",
                     track.cycleCount,
                     Modifier.weight(1f),
                     { onToggle("cycleCount") },
                     { onEdit("cycleCount") })
                 PhaseBtn(
                     "loading",
-                    "Loading",
+                    "Load",
                     track.loading,
                     Modifier.weight(1f),
                     { onToggle("loading") },
@@ -942,7 +928,6 @@ fun EmployeeCard(
     }
 }
 
-// ── Phase Button ─────────────────────────
 @Composable
 fun PhaseBtn(
     key: String,
@@ -953,19 +938,13 @@ fun PhaseBtn(
     onEdit: () -> Unit
 ) {
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            label,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.Gray,
-            maxLines = 1
-        )
-        Spacer(Modifier.height(6.dp))
+        Text(label, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Gray, maxLines = 1)
+        Spacer(Modifier.height(4.dp))
         Button(
             onClick = onToggle,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(38.dp),
+                .height(34.dp),
             contentPadding = PaddingValues(0.dp),
             shape = RoundedCornerShape(8.dp),
             colors = ButtonDefaults.buttonColors(
@@ -974,9 +953,9 @@ fun PhaseBtn(
                 )
             )
         ) {
-            Text(if (data.isActive) "OUT" else "IN", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(if (data.isActive) "OUT" else "IN", fontSize = 11.sp, fontWeight = FontWeight.Bold)
         }
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(4.dp))
         Surface(
             modifier = Modifier
                 .clip(RoundedCornerShape(4.dp))
@@ -986,30 +965,26 @@ fun PhaseBtn(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     formatDuration(data.accumulatedSeconds),
-                    fontSize = 11.sp,
+                    fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     color = NavyBlue
                 )
                 if (data.isActive) Text(
                     "Start: ${data.currentStartTime}",
-                    fontSize = 9.sp,
+                    fontSize = 8.sp,
                     color = GreenColor
                 )
-                else Text("Tap to edit", fontSize = 8.sp, color = Color.LightGray)
             }
         }
     }
 }
 
-// ── Summary Card ─────────────────────────
 @Composable
 fun SummaryCard(
     branchName: String,
     employees: List<Employee>,
     tracks: Map<String, EmployeeTrack>,
-    onExport: () -> Unit,
-    onExportRange: () -> Unit  // ← ضيف ده
-
+    onExportRange: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1017,123 +992,142 @@ fun SummaryCard(
         colors = CardDefaults.cardColors(containerColor = NavyBlue),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(8.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    "BRANCH SUMMARY - ${branchName.uppercase()}",
+                    "SUMMARY - ${branchName.uppercase()}",
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp
+                    fontSize = 10.sp
                 )
-                Row {
-                    // زرار Export Range
-                    IconButton(onClick = onExportRange, modifier = Modifier.size(32.dp)) {
-                        Icon(
-                            Icons.Default.Share,
-                            null,
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                    Spacer(Modifier.width(4.dp))
-                    // زرار Share (اللي كان موجود)
-//                    IconButton(onClick = onExport, modifier = Modifier.size(32.dp)) {
-//                        Icon(
-//                            Icons.Default.Share,
-//                            null,
-//                            tint = Color.White,
-//                            modifier = Modifier.size(18.dp)
-//                        )
-//                    }
+                IconButton(onClick = onExportRange, modifier = Modifier.size(24.dp)) {
+                    Icon(
+                        Icons.Default.Share,
+                        null,
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
                 }
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.dp))
             Row(modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 4.dp)) {
+                .padding(vertical = 2.dp)) {
                 Text(
                     "Name",
                     color = Color.White.copy(0.6f),
-                    fontSize = 10.sp,
+                    fontSize = 9.sp,
                     modifier = Modifier.weight(1.2f)
                 )
                 Text(
                     "Prep",
                     color = Color.White.copy(0.6f),
-                    fontSize = 10.sp,
+                    fontSize = 9.sp,
                     modifier = Modifier.weight(1f),
                     textAlign = TextAlign.Center
                 )
                 Text(
                     "Cycle",
                     color = Color.White.copy(0.6f),
-                    fontSize = 10.sp,
+                    fontSize = 9.sp,
                     modifier = Modifier.weight(1f),
                     textAlign = TextAlign.Center
                 )
                 Text(
                     "Load",
                     color = Color.White.copy(0.6f),
-                    fontSize = 10.sp,
+                    fontSize = 9.sp,
                     modifier = Modifier.weight(1f),
                     textAlign = TextAlign.Center
                 )
                 Text(
                     "Total",
                     color = Color.White.copy(0.6f),
-                    fontSize = 10.sp,
-                    modifier = Modifier.weight(1.2f),
+                    fontSize = 9.sp,
+                    modifier = Modifier.weight(1.1f),
                     textAlign = TextAlign.Center
                 )
             }
             HorizontalDivider(color = Color.White.copy(0.1f))
-            employees.forEach { emp ->
-                val t = tracks[emp.id] ?: return@forEach
+            val scrollState = rememberScrollState()
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 110.dp)
+                    .verticalScroll(scrollState)
+            ) {
+                employees.forEach { emp ->
+                    val t = tracks[emp.id] ?: return@forEach
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            emp.name,
+                            color = Color.White,
+                            fontSize = 9.sp,
+                            modifier = Modifier.weight(1.2f),
+                            maxLines = 1
+                        )
+                        Text(
+                            formatDuration(t.preparation.accumulatedSeconds),
+                            color = Color.White,
+                            fontSize = 8.sp,
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            formatDuration(t.cycleCount.accumulatedSeconds),
+                            color = Color.White,
+                            fontSize = 8.sp,
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            formatDuration(t.loading.accumulatedSeconds),
+                            color = Color.White,
+                            fontSize = 8.sp,
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            formatDuration(t.totalWHSeconds),
+                            color = AmberColor,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1.1f),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+            val totalWH = employees.sumOf { tracks[it.id]?.totalWHSeconds ?: 0 }
+            if (employees.isNotEmpty()) {
+                HorizontalDivider(
+                    color = Color.White.copy(0.2f),
+                    modifier = Modifier.padding(vertical = 2.dp)
+                )
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        emp.name,
+                        "TOTAL",
                         color = Color.White,
-                        fontSize = 11.sp,
-                        modifier = Modifier.weight(1.2f),
-                        maxLines = 1
-                    )
-                    Text(
-                        formatDuration(t.preparation.accumulatedSeconds),
-                        color = Color.White,
-                        fontSize = 9.sp,
-                        modifier = Modifier.weight(1f),
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        formatDuration(t.cycleCount.accumulatedSeconds),
-                        color = Color.White,
-                        fontSize = 9.sp,
-                        modifier = Modifier.weight(1f),
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        formatDuration(t.loading.accumulatedSeconds),
-                        color = Color.White,
-                        fontSize = 9.sp,
-                        modifier = Modifier.weight(1f),
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        formatDuration(t.totalWHSeconds),
-                        color = AmberColor,
-                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1.2f),
-                        textAlign = TextAlign.Center
+                        fontSize = 10.sp
+                    )
+                    Text(
+                        formatDuration(totalWH),
+                        color = AmberColor,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 11.sp
                     )
                 }
             }
@@ -1141,27 +1135,26 @@ fun SummaryCard(
     }
 }
 
-// ── Metric Card ──────────────────────────
 @Composable
 fun MetricCard(modifier: Modifier, value: String, label: String, color: Color) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(2.dp)
+        elevation = CardDefaults.cardElevation(1.dp)
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 value,
-                fontSize = 14.sp,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 color = color,
                 textAlign = TextAlign.Center
             )
-            Text(label, fontSize = 10.sp, color = Color.Gray)
+            Text(label, fontSize = 9.sp, color = Color.Gray)
         }
     }
 }

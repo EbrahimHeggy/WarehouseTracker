@@ -26,7 +26,7 @@ class AuthRepository {
                 auth.signOut() // طرده فوراً لو مش موجود في الداتابيز
                 return Result.failure(Exception("This account has been deactivated by Admin."))
             }
-            
+
             val profile = UserProfile(
                 uid = uid,
                 email = doc.getString("email") ?: "",

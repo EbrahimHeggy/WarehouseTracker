@@ -7,6 +7,9 @@ import com.example.warehousetracker.data.model.WorkSession
 import com.google.firebase.firestore.SetOptions
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -158,12 +161,13 @@ class TrackingRepository {
     suspend fun getTracksForBranch(
         employees: List<Employee>,
         date: String
-    ): Map<String, EmployeeTrack> {
-        val result = mutableMapOf<String, EmployeeTrack>()
-        employees.forEach { emp ->
-            result[emp.id] = getTrack(emp.id, date)
+    ): Map<String, EmployeeTrack> = coroutineScope {
+        val deferredTracks = employees.map { emp ->
+            async {
+                emp.id to getTrack(emp.id, date)
+            }
         }
-        return result
+        deferredTracks.awaitAll().toMap()
     }
 
 
@@ -171,28 +175,24 @@ class TrackingRepository {
         employees: List<Employee>,
         startDate: String,
         endDate: String
-    ): Map<String, List<Pair<String, EmployeeTrack>>> {
+    ): Map<String, List<Pair<String, EmployeeTrack>>> = coroutineScope {
         // بيرجع Map<employeeId, List<Pair<date, track>>>
-        val result = mutableMapOf<String, MutableList<Pair<String, EmployeeTrack>>>()
-
-        // جيب كل الأيام بين التاريخين
         val dates = getDatesBetween(startDate, endDate)
 
-        employees.forEach { emp ->
-            result[emp.id] = mutableListOf()
-            dates.forEach { date ->
-                val track = getTrack(emp.id, date)
-                // بس لو في داتا في اليوم ده
-                if (track.totalWHSeconds > 0 ||
-                    track.preparation.history.isNotEmpty() ||
-                    track.cycleCount.history.isNotEmpty() ||
-                    track.loading.history.isNotEmpty()
-                ) {
-                    result[emp.id]!!.add(date to track)
+        val deferredList = employees.map { emp ->
+            async {
+                val empTracks = dates.map { date ->
+                    async { date to getTrack(emp.id, date) }
+                }.awaitAll().filter {
+                    it.second.totalWHSeconds > 0 ||
+                            it.second.preparation.history.isNotEmpty() ||
+                            it.second.cycleCount.history.isNotEmpty() ||
+                            it.second.loading.history.isNotEmpty()
                 }
+                emp.id to empTracks
             }
         }
-        return result
+        deferredList.awaitAll().toMap()
     }
 
     private fun getDatesBetween(startDate: String, endDate: String): List<String> {

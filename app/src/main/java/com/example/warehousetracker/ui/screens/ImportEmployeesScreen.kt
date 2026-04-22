@@ -65,6 +65,7 @@ import com.example.warehousetracker.data.model.Employee
 import com.example.warehousetracker.data.repository.BranchRepository
 import com.example.warehousetracker.data.repository.EmployeeRepository
 import kotlinx.coroutines.launch
+import org.apache.poi.ss.usermodel.DataFormatter
 import org.apache.poi.ss.usermodel.WorkbookFactory
 
 data class ImportedEmployee(
@@ -131,12 +132,14 @@ fun ImportEmployeesScreen(
                 when {
                     isExcel -> {
                         val workbook = WorkbookFactory.create(inputStream)
+                        val formatter = DataFormatter()
                         val sheet = workbook.getSheetAt(0)
                         sheet.rowIterator().forEach { row ->
                             if (row.rowNum == 0) return@forEach
-                            val name = row.getCell(0)?.toString()?.trim() ?: ""
-                            val code = row.getCell(1)?.toString()?.trim() ?: ""
-                            val branchName = row.getCell(2)?.toString()?.trim() ?: ""
+                            val name = formatter.formatCellValue(row.getCell(0)).trim()
+                            val code = formatter.formatCellValue(row.getCell(1)).trim()
+                            val branchName = formatter.formatCellValue(row.getCell(2)).trim()
+
                             if (name.isNotBlank()) {
                                 val matchedBranch = availableBranches.find {
                                     it.name.equals(branchName, ignoreCase = true)
