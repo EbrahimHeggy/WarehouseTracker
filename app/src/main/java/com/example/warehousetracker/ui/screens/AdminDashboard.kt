@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -63,10 +65,13 @@ import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -90,11 +95,11 @@ import com.example.warehousetracker.data.model.Branch
 import com.example.warehousetracker.data.model.Employee
 import com.example.warehousetracker.data.model.EmployeeTrack
 import com.example.warehousetracker.data.model.PhaseData
-import com.example.warehousetracker.data.model.Vehicle
 import com.example.warehousetracker.data.model.VehicleTrack
 import com.example.warehousetracker.formatDuration
 import com.example.warehousetracker.ui.viewmodel.AuthViewModel
 import com.example.warehousetracker.ui.viewmodel.DashboardViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 fun AdminDashboardScreen(
@@ -103,14 +108,35 @@ fun AdminDashboardScreen(
 ) {
     val context = LocalContext.current
     val state by dashboardViewModel.state.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+
+    val pagerState = rememberPagerState(pageCount = { 2 })
+
+    // Sync tab selection with pager
+    LaunchedEffect(state.activeTab) {
+        val targetPage = if (state.activeTab == "inbound") 0 else 1
+        if (pagerState.currentPage != targetPage) {
+            pagerState.animateScrollToPage(targetPage)
+        }
+    }
+
+    // Update ViewModel when pager is swiped
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.currentPage }.collect { page ->
+            val targetTab = if (page == 0) "inbound" else "outbound"
+            if (state.activeTab != targetTab) {
+                dashboardViewModel.setTab(targetTab)
+            }
+        }
+    }
 
     var branchDropdownExpanded by remember { mutableStateOf(false) }
     var showAddBranchDialog by remember { mutableStateOf(false) }
-    var showDeleteBranchDialog by remember { mutableStateOf(false) }
+    var branchToDelete by remember { mutableStateOf<Branch?>(null) }
     var showAddEmployeeDialog by remember { mutableStateOf(false) }
     var showAddVehicleDialog by remember { mutableStateOf(false) }
     var employeeToDelete by remember { mutableStateOf<Employee?>(null) }
-    var vehicleToDelete by remember { mutableStateOf<Vehicle?>(null) }
+    var vehicleTrackToDelete by remember { mutableStateOf<VehicleTrack?>(null) }
     var manualTimeDialogData by remember { mutableStateOf<Triple<String, String, Boolean>?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var showRegisterUserDialog by remember { mutableStateOf(false) }
@@ -259,20 +285,20 @@ fun AdminDashboardScreen(
 
         // ── Tab Switcher (Inbound / Outbound) ──
         TabRow(
-            selectedTabIndex = if (state.activeTab == "inbound") 0 else 1,
+            selectedTabIndex = pagerState.currentPage,
             containerColor = Color.Transparent,
             contentColor = Color.White,
             divider = {},
             indicator = { tabPositions ->
                 TabRowDefaults.SecondaryIndicator(
-                    Modifier.tabIndicatorOffset(tabPositions[if (state.activeTab == "inbound") 0 else 1]),
+                    Modifier.tabIndicatorOffset(tabPositions[pagerState.currentPage]),
                     color = Color.White
                 )
             }
         ) {
             Tab(
-                selected = state.activeTab == "inbound",
-                onClick = { dashboardViewModel.setTab("inbound") }) {
+                selected = pagerState.currentPage == 0,
+                onClick = { scope.launch { pagerState.animateScrollToPage(0) } }) {
                 Text(
                     "INBOUND",
                     modifier = Modifier.padding(12.dp),
@@ -281,8 +307,8 @@ fun AdminDashboardScreen(
                 )
             }
             Tab(
-                selected = state.activeTab == "outbound",
-                onClick = { dashboardViewModel.setTab("outbound") }) {
+                selected = pagerState.currentPage == 1,
+                onClick = { scope.launch { pagerState.animateScrollToPage(1) } }) {
                 Text(
                     "OUTBOUND",
                     modifier = Modifier.padding(12.dp),
@@ -357,11 +383,41 @@ fun AdminDashboardScreen(
                                 .background(Color.White)
                         ) {
                             state.branches.forEach { branch ->
+                                val empCount = state.branchEmployeeCounts[branch.id] ?: 0
                                 DropdownMenuItem(
-                                    text = { Text(branch.name) },
+                                    text = {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(branch.name, fontWeight = FontWeight.Medium)
+                                                Text(
+                                                    "$empCount Employees",
+                                                    fontSize = 10.sp,
+                                                    color = Color.Gray
+                                                )
+                                            }
+                                            IconButton(
+                                                onClick = {
+                                                    branchToDelete = branch
+                                                    branchDropdownExpanded = false
+                                                },
+                                                modifier = Modifier.size(32.dp)
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.Delete,
+                                                    null,
+                                                    tint = RedColor.copy(0.6f),
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                        }
+                                    },
                                     onClick = {
-                                        dashboardViewModel.selectBranch(branch); branchDropdownExpanded =
-                                        false
+                                        dashboardViewModel.selectBranch(branch)
+                                        branchDropdownExpanded = false
                                     }
                                 )
                             }
@@ -402,70 +458,79 @@ fun AdminDashboardScreen(
                     ) { CircularProgressIndicator(color = NavyBlue) }
                 } else {
                     Column(modifier = Modifier.fillMaxSize()) {
-                        if (state.activeTab == "inbound") {
-                            // INBOUND CONTENT
-                            val filteredEmps =
-                                if (searchQuery.isBlank()) state.employees else state.employees.filter {
-                                    it.name.contains(
-                                        searchQuery,
-                                        true
-                                    ) || it.code.contains(searchQuery, true)
+                        HorizontalPager(
+                            state = pagerState,
+                            modifier = Modifier.weight(1f),
+                            beyondViewportPageCount = 1
+                        ) { page ->
+                            if (page == 0) {
+                                // INBOUND CONTENT
+                                val filteredEmps =
+                                    if (searchQuery.isBlank()) state.employees else state.employees.filter {
+                                        it.name.contains(
+                                            searchQuery,
+                                            true
+                                        ) || it.code.contains(searchQuery, true)
+                                    }
+                                LazyColumn(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                                    contentPadding = PaddingValues(bottom = 12.dp)
+                                ) {
+                                    items(filteredEmps, key = { it.id }) { emp ->
+                                        val track = state.tracks[emp.id] ?: EmployeeTrack(
+                                            employeeId = emp.id,
+                                            date = state.date
+                                        )
+                                        EmployeeCard(
+                                            emp.name,
+                                            emp.code,
+                                            track,
+                                            { phase ->
+                                                dashboardViewModel.togglePhase(
+                                                    emp.id,
+                                                    phase
+                                                )
+                                            },
+                                            { p ->
+                                                manualTimeDialogData = Triple(emp.id, p, false)
+                                            },
+                                            { employeeToDelete = emp })
+                                    }
                                 }
-                            LazyColumn(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .padding(horizontal = 16.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp),
-                                contentPadding = PaddingValues(bottom = 12.dp)
-                            ) {
-                                items(filteredEmps, key = { it.id }) { emp ->
-                                    val track = state.tracks[emp.id] ?: EmployeeTrack(
-                                        employeeId = emp.id,
-                                        date = state.date
-                                    )
-                                    EmployeeCard(
-                                        emp.name,
-                                        emp.code,
-                                        track,
-                                        { phase -> dashboardViewModel.togglePhase(emp.id, phase) },
-                                        { p -> manualTimeDialogData = Triple(emp.id, p, false) },
-                                        { employeeToDelete = emp })
-                                }
-                            }
-                        } else {
-                            // OUTBOUND CONTENT (Vehicles)
-                            val filteredVehicles =
-                                if (searchQuery.isBlank()) state.vehicles else state.vehicles.filter {
-                                    it.type.contains(
-                                        searchQuery,
-                                        true
-                                    ) || it.plateNumber.contains(searchQuery, true)
-                                }
-                            LazyColumn(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .padding(horizontal = 16.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp),
-                                contentPadding = PaddingValues(bottom = 12.dp)
-                            ) {
-                                items(filteredVehicles, key = { it.id }) { vehicle ->
-                                    val track = state.vehicleTracks[vehicle.id] ?: VehicleTrack(
-                                        vehicleId = vehicle.id,
-                                        date = state.date
-                                    )
-                                    VehicleCard(
-                                        vehicle,
-                                        track,
-                                        { phase ->
-                                            dashboardViewModel.toggleVehiclePhase(
-                                                vehicle.id,
-                                                phase
-                                            )
-                                        },
-                                        { phase ->
-                                            manualTimeDialogData = Triple(vehicle.id, phase, true)
-                                        },
-                                        { vehicleToDelete = vehicle })
+                            } else {
+                                // OUTBOUND CONTENT (Vehicles)
+                                val filteredVTracks =
+                                    if (searchQuery.isBlank()) state.vehicleTracks else state.vehicleTracks.filter {
+                                        it.type.contains(
+                                            searchQuery,
+                                            true
+                                        ) || it.plateNumber.contains(searchQuery, true)
+                                    }
+                                LazyColumn(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                                    contentPadding = PaddingValues(bottom = 12.dp)
+                                ) {
+                                    items(filteredVTracks, key = { it.vehicleId }) { track ->
+                                        VehicleCard(
+                                            track,
+                                            { phase ->
+                                                dashboardViewModel.toggleVehiclePhase(
+                                                    track.vehicleId,
+                                                    phase
+                                                )
+                                            },
+                                            { phase ->
+                                                manualTimeDialogData =
+                                                    Triple(track.vehicleId, phase, true)
+                                            },
+                                            { vehicleTrackToDelete = track })
+                                    }
                                 }
                             }
                         }
@@ -478,7 +543,7 @@ fun AdminDashboardScreen(
                                 .navigationBarsPadding()
                                 .padding(horizontal = 12.dp, vertical = 8.dp)
                         ) {
-                            if (state.activeTab == "inbound") {
+                            if (pagerState.currentPage == 0) {
                                 SummaryCard(
                                     state.selectedBranch?.name ?: "",
                                     state.employees,
@@ -487,7 +552,6 @@ fun AdminDashboardScreen(
                             } else {
                                 VehicleSummaryCard(
                                     state.selectedBranch?.name ?: "",
-                                    state.vehicles,
                                     state.vehicleTracks,
                                     { showExportScreen = true })
                             }
@@ -519,6 +583,26 @@ fun AdminDashboardScreen(
                             false
                     }
                 }) { Text("Add") }
+            }
+        )
+    }
+
+    if (branchToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { branchToDelete = null },
+            title = { Text("Delete Branch") },
+            text = { Text("Are you sure you want to delete branch \"${branchToDelete?.name}\"? This will remove the branch and all its data from the system.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        branchToDelete?.let { dashboardViewModel.deleteBranch(it.id) }
+                        branchToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = RedColor)
+                ) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { branchToDelete = null }) { Text("Cancel") }
             }
         )
     }
@@ -565,7 +649,7 @@ fun AdminDashboardScreen(
         val types = listOf("Actros", "Axor", "NQR")
         AlertDialog(
             onDismissRequest = { showAddVehicleDialog = false },
-            title = { Text("Add Vehicle") },
+            title = { Text("Add Vehicle Entry") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Select Type:", fontSize = 12.sp, color = Color.Gray)
@@ -591,7 +675,7 @@ fun AdminDashboardScreen(
                         dashboardViewModel.addVehicle(vType, plate, context); showAddVehicleDialog =
                             false
                     }
-                }) { Text("Add") }
+                }) { Text("Enter Branch") }
             }
         )
     }
@@ -613,15 +697,15 @@ fun AdminDashboardScreen(
         )
     }
 
-    if (vehicleToDelete != null) {
+    if (vehicleTrackToDelete != null) {
         AlertDialog(
-            onDismissRequest = { vehicleToDelete = null },
-            title = { Text("Delete Vehicle") },
-            text = { Text("Delete vehicle ${vehicleToDelete?.plateNumber}?") },
+            onDismissRequest = { vehicleTrackToDelete = null },
+            title = { Text("Delete Entry") },
+            text = { Text("Delete entry for ${vehicleTrackToDelete?.type} (${vehicleTrackToDelete?.plateNumber})?") },
             confirmButton = {
                 Button(
                     onClick = {
-                        dashboardViewModel.deleteVehicle(vehicleToDelete!!.id); vehicleToDelete =
+                        dashboardViewModel.deleteVehicle(vehicleTrackToDelete!!.vehicleId); vehicleTrackToDelete =
                         null
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = RedColor)
@@ -762,256 +846,7 @@ fun AdminDashboardScreen(
     }
 }
 
-// ── Vehicle UI Components ──────────────────
-
-@Composable
-fun VehicleCard(
-    vehicle: Vehicle,
-    track: VehicleTrack,
-    onToggle: (String) -> Unit,
-    onEdit: (String) -> Unit,
-    onDelete: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(2.dp)
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(NavyBlue.copy(0.1f)), contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.LocalShipping,
-                        null,
-                        tint = NavyBlue,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Spacer(Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(vehicle.type, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        IconButton(
-                            onClick = onDelete,
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Delete,
-                                null,
-                                tint = RedColor.copy(0.5f),
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
-                    Text("Plate: ${vehicle.plateNumber}", color = Color.Gray, fontSize = 11.sp)
-                }
-                Text(
-                    formatDuration(track.totalSeconds),
-                    fontWeight = FontWeight.Bold,
-                    color = NavyBlue,
-                    fontSize = 12.sp
-                )
-            }
-            Spacer(Modifier.height(10.dp))
-            HorizontalDivider(color = NavyBlue.copy(0.05f))
-            Spacer(Modifier.height(10.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                VPhaseBtn(
-                    "Waiting",
-                    track.waiting,
-                    Modifier.weight(1f),
-                    { onToggle("waiting") },
-                    { onEdit("waiting") })
-                VPhaseBtn(
-                    "Offload",
-                    track.offloading,
-                    Modifier.weight(1f),
-                    { onToggle("offloading") },
-                    { onEdit("offloading") })
-            }
-        }
-    }
-}
-
-@Composable
-fun VPhaseBtn(
-    label: String,
-    data: PhaseData,
-    modifier: Modifier,
-    onClick: () -> Unit,
-    onEdit: () -> Unit
-) {
-    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
-        Spacer(Modifier.height(4.dp))
-        Button(
-            onClick = onClick,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(34.dp),
-            shape = RoundedCornerShape(8.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = if (data.isActive) GreenColor else NavyBlue.copy(0.8f)
-            ),
-            contentPadding = PaddingValues(0.dp)
-        ) {
-            Text(if (data.isActive) "OUT" else "IN", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-        }
-        Spacer(Modifier.height(4.dp))
-        Surface(
-            modifier = Modifier
-                .clip(RoundedCornerShape(4.dp))
-                .clickable { onEdit() },
-            color = Color.Transparent
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    formatDuration(data.accumulatedSeconds),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = NavyBlue
-                )
-                if (data.isActive) {
-                    Text("Start: ${data.currentStartTime}", fontSize = 8.sp, color = GreenColor)
-                } else {
-                    data.history.lastOrNull()?.let {
-                        Text("End: ${it.endTime}", fontSize = 8.sp, color = Color.Gray)
-                    }
-                    Text("Tap to edit", fontSize = 8.sp, color = Color.LightGray)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun VehicleSummaryCard(
-    branchName: String,
-    vehicles: List<Vehicle>,
-    tracks: Map<String, VehicleTrack>,
-    onExportRange: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = NavyBlue),
-        elevation = CardDefaults.cardElevation(4.dp)
-    ) {
-        Column(modifier = Modifier.padding(8.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    "OUTBOUND SUMMARY - ${branchName.uppercase()}",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 10.sp
-                )
-                IconButton(onClick = onExportRange, modifier = Modifier.size(24.dp)) {
-                    Icon(
-                        Icons.Default.Share,
-                        null,
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-            Spacer(Modifier.height(4.dp))
-            Row(modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 2.dp)) {
-                Text(
-                    "Vehicle",
-                    color = Color.White.copy(0.6f),
-                    fontSize = 9.sp,
-                    modifier = Modifier.weight(1.2f)
-                )
-                Text(
-                    "Waiting",
-                    color = Color.White.copy(0.6f),
-                    fontSize = 9.sp,
-                    modifier = Modifier.weight(1f),
-                    textAlign = TextAlign.Center
-                )
-                Text(
-                    "Offload",
-                    color = Color.White.copy(0.6f),
-                    fontSize = 9.sp,
-                    modifier = Modifier.weight(1f),
-                    textAlign = TextAlign.Center
-                )
-                Text(
-                    "Total",
-                    color = Color.White.copy(0.6f),
-                    fontSize = 9.sp,
-                    modifier = Modifier.weight(1f),
-                    textAlign = TextAlign.Center
-                )
-            }
-            HorizontalDivider(color = Color.White.copy(0.1f))
-            val scrollState = rememberScrollState()
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 80.dp)
-                    .verticalScroll(scrollState)
-            ) {
-                vehicles.forEach { v ->
-                    val t = tracks[v.id] ?: return@forEach
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "${v.type} (${v.plateNumber})",
-                            color = Color.White,
-                            fontSize = 9.sp,
-                            modifier = Modifier.weight(1.2f),
-                            maxLines = 1
-                        )
-                        Text(
-                            formatDuration(t.waiting.accumulatedSeconds),
-                            color = Color.White,
-                            fontSize = 8.sp,
-                            modifier = Modifier.weight(1f),
-                            textAlign = TextAlign.Center
-                        )
-                        Text(
-                            formatDuration(t.offloading.accumulatedSeconds),
-                            color = Color.White,
-                            fontSize = 8.sp,
-                            modifier = Modifier.weight(1f),
-                            textAlign = TextAlign.Center
-                        )
-                        Text(
-                            formatDuration(t.totalSeconds),
-                            color = AmberColor,
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f),
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-// ── REUSED Existing Components ──────────────────
+// ── UI Components ──────────────────
 
 @Composable
 fun SummaryCard(
@@ -1051,9 +886,11 @@ fun SummaryCard(
                 }
             }
             Spacer(Modifier.height(4.dp))
-            Row(modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 2.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 2.dp)
+            ) {
                 Text(
                     "Name",
                     color = Color.White.copy(0.6f),
@@ -1166,6 +1003,122 @@ fun SummaryCard(
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 11.sp
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun VehicleSummaryCard(
+    branchName: String,
+    vehicleTracks: List<VehicleTrack>,
+    onExportRange: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = NavyBlue),
+        elevation = CardDefaults.cardElevation(4.dp)
+    ) {
+        Column(modifier = Modifier.padding(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    "OUTBOUND SUMMARY - ${branchName.uppercase()}",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 10.sp
+                )
+                IconButton(onClick = onExportRange, modifier = Modifier.size(24.dp)) {
+                    Icon(
+                        Icons.Default.Share,
+                        null,
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            Row(modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 2.dp)) {
+                Text(
+                    "Vehicle",
+                    color = Color.White.copy(0.6f),
+                    fontSize = 9.sp,
+                    modifier = Modifier.weight(1.2f)
+                )
+                Text(
+                    "Waiting",
+                    color = Color.White.copy(0.6f),
+                    fontSize = 9.sp,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    "Offload",
+                    color = Color.White.copy(0.6f),
+                    fontSize = 9.sp,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    "Total",
+                    color = Color.White.copy(0.6f),
+                    fontSize = 9.sp,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center
+                )
+            }
+            HorizontalDivider(color = Color.White.copy(0.1f))
+            val scrollState = rememberScrollState()
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 80.dp)
+                    .verticalScroll(scrollState)
+            ) {
+                vehicleTracks.forEach { t ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "${t.type} (${t.plateNumber})",
+                            color = Color.White,
+                            fontSize = 9.sp,
+                            modifier = Modifier.weight(1.2f),
+                            maxLines = 1
+                        )
+                        Text(
+                            formatDuration(t.waiting.accumulatedSeconds),
+                            color = Color.White,
+                            fontSize = 8.sp,
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            formatDuration(t.offloading.accumulatedSeconds),
+                            color = Color.White,
+                            fontSize = 8.sp,
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            formatDuration(t.totalSeconds),
+                            color = AmberColor,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
         }
@@ -1376,6 +1329,134 @@ fun EmployeeCard(
             { onToggle("loading") },
             { onEdit("loading") })
         }
+        }
+    }
+}
+
+@Composable
+fun VehicleCard(
+    track: VehicleTrack,
+    onToggle: (String) -> Unit,
+    onEdit: (String) -> Unit,
+    onDelete: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(2.dp)
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(NavyBlue.copy(0.1f)), contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.LocalShipping,
+                        null,
+                        tint = NavyBlue,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(track.type, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        IconButton(
+                            onClick = onDelete,
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Delete,
+                                null,
+                                tint = RedColor.copy(0.5f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                    Text("Plate: ${track.plateNumber}", color = Color.Gray, fontSize = 11.sp)
+                }
+                Text(
+                    formatDuration(track.totalSeconds),
+                    fontWeight = FontWeight.Bold,
+                    color = NavyBlue,
+                    fontSize = 12.sp
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+            HorizontalDivider(color = NavyBlue.copy(0.05f))
+            Spacer(Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                VPhaseBtn(
+                    "Waiting",
+                    track.waiting,
+                    Modifier.weight(1f),
+                    { onToggle("waiting") },
+                    { onEdit("waiting") })
+                VPhaseBtn(
+                    "Offload",
+                    track.offloading,
+                    Modifier.weight(1f),
+                    { onToggle("offloading") },
+                    { onEdit("offloading") })
+            }
+        }
+    }
+}
+
+@Composable
+fun VPhaseBtn(
+    label: String,
+    data: PhaseData,
+    modifier: Modifier,
+    onClick: () -> Unit,
+    onEdit: () -> Unit
+) {
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(label, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+        Spacer(Modifier.height(4.dp))
+        Button(
+            onClick = onClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(34.dp),
+            shape = RoundedCornerShape(8.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (data.isActive) GreenColor else NavyBlue.copy(0.8f)
+            ),
+            contentPadding = PaddingValues(0.dp)
+        ) {
+            Text(if (data.isActive) "OUT" else "IN", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.height(4.dp))
+        Surface(
+            modifier = Modifier
+                .clip(RoundedCornerShape(4.dp))
+                .clickable { onEdit() },
+            color = Color.Transparent
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    formatDuration(data.accumulatedSeconds),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = NavyBlue
+                )
+                if (data.isActive) {
+                    Text("Start: ${data.currentStartTime}", fontSize = 8.sp, color = GreenColor)
+                } else {
+                    data.history.lastOrNull()?.let {
+                        Text("End: ${it.endTime}", fontSize = 8.sp, color = Color.Gray)
+                    }
+                    Text("Tap to edit", fontSize = 8.sp, color = Color.LightGray)
+                }
+            }
         }
     }
 }

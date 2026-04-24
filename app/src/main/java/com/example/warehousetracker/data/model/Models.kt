@@ -53,12 +53,15 @@ data class EmployeeTrack(
 data class Vehicle(
     val id: String = "",
     val type: String = "", // "Actros", "Axor", "NQR"
-    val plateNumber: String = "", // Used to distinguish between same-type cars
+    val plateNumber: String = "",
     val branchId: String = ""
 )
 
 data class VehicleTrack(
-    val vehicleId: String = "",
+    val vehicleId: String = "", // Unique ID for this specific visit/entry
+    val type: String = "",      // Car type (Actros, etc.)
+    val plateNumber: String = "",
+    val branchId: String = "",
     val date: String = "",
     val waiting: PhaseData = PhaseData(),
     val offloading: PhaseData = PhaseData()

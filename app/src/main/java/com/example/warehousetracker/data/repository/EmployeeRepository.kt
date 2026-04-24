@@ -1,6 +1,7 @@
 package com.example.warehousetracker.data.repository
 
 import com.example.warehousetracker.data.model.Employee
+import com.google.firebase.firestore.AggregateSource
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.tasks.await
@@ -38,6 +39,19 @@ class EmployeeRepository {
             }
         } catch (e: Exception) {
             emptyList()
+        }
+    }
+
+    suspend fun getEmployeeCountByBranch(branchId: String): Int {
+        return try {
+            db.collection("employees")
+                .whereEqualTo("branchId", branchId)
+                .count()
+                .get(AggregateSource.SERVER)
+                .await()
+                .count.toInt()
+        } catch (e: Exception) {
+            0
         }
     }
 

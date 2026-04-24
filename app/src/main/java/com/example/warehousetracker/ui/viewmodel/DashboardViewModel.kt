@@ -9,7 +9,6 @@ import androidx.lifecycle.viewModelScope
 import com.example.warehousetracker.data.model.Branch
 import com.example.warehousetracker.data.model.Employee
 import com.example.warehousetracker.data.model.EmployeeTrack
-import com.example.warehousetracker.data.model.Vehicle
 import com.example.warehousetracker.data.model.VehicleTrack
 import com.example.warehousetracker.data.repository.BranchRepository
 import com.example.warehousetracker.data.repository.EmployeeRepository
@@ -23,13 +22,13 @@ import java.io.File
 
 data class DashboardState(
     val branches: List<Branch> = emptyList(),
+    val branchEmployeeCounts: Map<String, Int> = emptyMap(),
     val selectedBranch: Branch? = null,
     val employees: List<Employee> = emptyList(),
     val tracks: Map<String, EmployeeTrack> = emptyMap(),
 
-    // Outbound
-    val vehicles: List<Vehicle> = emptyList(),
-    val vehicleTracks: Map<String, VehicleTrack> = emptyMap(),
+    // Outbound - Now based on visits/tracks
+    val vehicleTracks: List<VehicleTrack> = emptyList(),
     
     val isLoading: Boolean = false,
     val date: String = "",
@@ -58,8 +57,17 @@ class DashboardViewModel : ViewModel() {
             _state.value = _state.value.copy(isLoading = true)
             val branches = branchRepo.getBranches()
             val selected = branches.firstOrNull()
+
+            // Load employee counts for all branches
+            val counts = branches.associate { it.id to empRepo.getEmployeeCountByBranch(it.id) }
+            
             _state.value =
-                _state.value.copy(branches = branches, selectedBranch = selected, isLoading = false)
+                _state.value.copy(
+                    branches = branches,
+                    branchEmployeeCounts = counts,
+                    selectedBranch = selected,
+                    isLoading = false
+                )
             selected?.let {
                 loadEmployees(it.id)
                 loadVehicles(it.id)
@@ -73,8 +81,7 @@ class DashboardViewModel : ViewModel() {
                 selectedBranch = branch,
                 employees = emptyList(),
                 tracks = emptyMap(),
-                vehicles = emptyList(),
-                vehicleTracks = emptyMap()
+                vehicleTracks = emptyList()
             )
         loadEmployees(branch.id)
         loadVehicles(branch.id)
@@ -85,16 +92,25 @@ class DashboardViewModel : ViewModel() {
             _state.value = _state.value.copy(isLoading = true)
             val employees = empRepo.getEmployeesByBranch(branchId)
             val tracks = trackRepo.getTracksForBranch(employees, _state.value.date)
+
+            // Refresh count for current branch
+            val newCounts = _state.value.branchEmployeeCounts.toMutableMap()
+            newCounts[branchId] = employees.size
+            
             _state.value =
-                _state.value.copy(employees = employees, tracks = tracks, isLoading = false)
+                _state.value.copy(
+                    employees = employees,
+                    tracks = tracks,
+                    branchEmployeeCounts = newCounts,
+                    isLoading = false
+                )
         }
     }
 
     fun loadVehicles(branchId: String) {
         viewModelScope.launch {
-            val vehicles = vehicleRepo.getVehiclesByBranch(branchId)
-            val vTracks = trackRepo.getVehicleTracksForBranch(vehicles, _state.value.date)
-            _state.value = _state.value.copy(vehicles = vehicles, vehicleTracks = vTracks)
+            val vTracks = trackRepo.getVehicleTracksForBranch(branchId, _state.value.date)
+            _state.value = _state.value.copy(vehicleTracks = vTracks)
         }
     }
 
@@ -110,41 +126,35 @@ class DashboardViewModel : ViewModel() {
 
     // ── Vehicle Actions ──────────────────
 
-    fun toggleVehiclePhase(vehicleId: String, phase: String) {
+    fun toggleVehiclePhase(trackId: String, phase: String) {
         viewModelScope.launch {
-            trackRepo.toggleVehiclePhase(vehicleId, _state.value.date, phase)
-            val updated = trackRepo.getVehicleTrack(vehicleId, _state.value.date)
-            val newTracks = _state.value.vehicleTracks.toMutableMap()
-            newTracks[vehicleId] = updated
-            _state.value = _state.value.copy(vehicleTracks = newTracks)
+            trackRepo.toggleVehiclePhase(trackId, _state.value.date, phase)
+            loadVehicles(_state.value.selectedBranch?.id ?: return@launch)
         }
     }
 
-    fun resetVehiclePhase(vehicleId: String, phase: String) {
+    fun resetVehiclePhase(trackId: String, phase: String) {
         viewModelScope.launch {
-            trackRepo.resetVehiclePhase(vehicleId, _state.value.date, phase)
-            val updated = trackRepo.getVehicleTrack(vehicleId, _state.value.date)
-            val newTracks = _state.value.vehicleTracks.toMutableMap()
-            newTracks[vehicleId] = updated
-            _state.value = _state.value.copy(vehicleTracks = newTracks)
+            trackRepo.resetVehiclePhase(trackId, _state.value.date, phase)
+            loadVehicles(_state.value.selectedBranch?.id ?: return@launch)
         }
     }
 
     fun addVehicle(type: String, plateNumber: String, context: Context) {
         viewModelScope.launch {
             val branchId = _state.value.selectedBranch?.id ?: return@launch
-            val result = vehicleRepo.addVehicle(type, plateNumber, branchId)
+            val result = trackRepo.addVehicleVisit(branchId, _state.value.date, type, plateNumber)
             if (result.isSuccess) {
                 loadVehicles(branchId)
             } else {
-                Toast.makeText(context, "Error adding vehicle", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Error adding vehicle visit", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    fun deleteVehicle(vehicleId: String) {
+    fun deleteVehicle(trackId: String) {
         viewModelScope.launch {
-            vehicleRepo.deleteVehicle(vehicleId)
+            trackRepo.deleteVehicleTrack(trackId, _state.value.date)
             _state.value.selectedBranch?.let { loadVehicles(it.id) }
         }
     }
@@ -180,10 +190,7 @@ class DashboardViewModel : ViewModel() {
                 isVehicle
             )
             if (isVehicle) {
-                val updated = trackRepo.getVehicleTrack(id, _state.value.date)
-                val newTracks = _state.value.vehicleTracks.toMutableMap()
-                newTracks[id] = updated
-                _state.value = _state.value.copy(vehicleTracks = newTracks)
+                loadVehicles(_state.value.selectedBranch?.id ?: "")
             } else {
                 val updated = trackRepo.getTrack(id, _state.value.date)
                 val newTracks = _state.value.tracks.toMutableMap()
@@ -288,16 +295,14 @@ class DashboardViewModel : ViewModel() {
     }
 
     private fun exportOutboundCSV(context: Context) {
-        val vehicles = _state.value.vehicles
-        val tracks = _state.value.vehicleTracks
+        val vTracks = _state.value.vehicleTracks
         val branchName = _state.value.selectedBranch?.name ?: ""
         val sb = StringBuilder()
 
         sb.append("--- OUTBOUND SUMMARY REPORT ---\n")
         sb.append("Branch,Type,Plate Number,Waiting Total,Offload Total,Total Time\n")
-        vehicles.forEach { v ->
-            val t = tracks[v.id] ?: return@forEach
-            sb.append("$branchName,${v.type},${v.plateNumber},")
+        vTracks.forEach { t ->
+            sb.append("$branchName,${t.type},${t.plateNumber},")
             sb.append("${formatDuration(t.waiting.accumulatedSeconds)},")
             sb.append("${formatDuration(t.offloading.accumulatedSeconds)},")
             sb.append("${formatDuration(t.totalSeconds)}\n")
@@ -305,22 +310,21 @@ class DashboardViewModel : ViewModel() {
 
         sb.append("\n--- DETAILED LOG ---\n")
         sb.append("Branch,Type,Plate Number,Phase,In Time,Out Time,Duration\n")
-        vehicles.forEach { v ->
-            val t = tracks[v.id] ?: return@forEach
+        vTracks.forEach { t ->
             listOf(
                 "Waiting" to t.waiting,
                 "Offloading" to t.offloading
             ).forEach { (phaseName, data) ->
                 data.history.forEach { session ->
                     sb.append(
-                        "$branchName,${v.type},${v.plateNumber},$phaseName,'${session.startTime},'${session.endTime},${
+                        "$branchName,${t.type},${t.plateNumber},$phaseName,'${session.startTime},'${session.endTime},${
                             formatDuration(
                                 session.durationSeconds
                             )
                         }\n"
                     )
                 }
-                if (data.isActive) sb.append("$branchName,${v.type},${v.plateNumber},$phaseName,'${data.currentStartTime},STILL IN,In Progress\n")
+                if (data.isActive) sb.append("$branchName,${t.type},${t.plateNumber},$phaseName,'${data.currentStartTime},STILL IN,In Progress\n")
             }
         }
         shareFile(context, sb.toString(), "Outbound_Report")
@@ -435,59 +439,37 @@ class DashboardViewModel : ViewModel() {
         startDate: String,
         endDate: String
     ) {
-        val vehicles = _state.value.vehicles
+        val branchId = _state.value.selectedBranch?.id ?: return
         val branchName = _state.value.selectedBranch?.name ?: ""
-        val allVTracks = trackRepo.getVehicleTracksForDateRange(vehicles, startDate, endDate)
+        val allVTracks = trackRepo.getVehicleTracksForDateRange(branchId, startDate, endDate)
         val sb = StringBuilder()
 
         sb.append("=== OUTBOUND SUMMARY REPORT ($startDate to $endDate) ===\n")
-        sb.append("Branch,Type,Plate Number,Total Waiting,Total Offload,Total Time\n")
+        sb.append("Date,Branch,Type,Plate Number,Waiting,Offload,Total Time\n")
 
-        vehicles.forEach { v ->
-            val vTracks = allVTracks[v.id] ?: emptyList()
-            val totalW = vTracks.sumOf { it.second.waiting.accumulatedSeconds }
-            val totalO = vTracks.sumOf { it.second.offloading.accumulatedSeconds }
-            val total = totalW + totalO
-            if (total > 0) sb.append(
-                "$branchName,${v.type},${v.plateNumber},${formatDuration(totalW)},${
-                    formatDuration(
-                        totalO
-                    )
-                },${formatDuration(total)}\n"
-            )
-        }
-
-        sb.append("\n\n=== DAILY BREAKDOWN ===\nDate,Branch,Type,Plate Number,Waiting,Offload,Total\n")
-        vehicles.forEach { v ->
-            allVTracks[v.id]?.forEach { (date, track) ->
-                if (track.totalSeconds > 0) sb.append(
-                    "$date,$branchName,${v.type},${v.plateNumber},${
-                        formatDuration(
-                            track.waiting.accumulatedSeconds
-                        )
-                    },${formatDuration(track.offloading.accumulatedSeconds)},${formatDuration(track.totalSeconds)}\n"
-                )
-            }
+        allVTracks.forEach { t ->
+            sb.append("${t.date},$branchName,${t.type},${t.plateNumber},")
+            sb.append("${formatDuration(t.waiting.accumulatedSeconds)},")
+            sb.append("${formatDuration(t.offloading.accumulatedSeconds)},")
+            sb.append("${formatDuration(t.totalSeconds)}\n")
         }
 
         sb.append("\n\n=== DETAILED SESSION LOG ===\nDate,Branch,Type,Plate Number,Phase,In Time,Out Time,Duration\n")
-        vehicles.forEach { v ->
-            allVTracks[v.id]?.forEach { (date, track) ->
-                listOf(
-                    "Waiting" to track.waiting,
-                    "Offloading" to track.offloading
-                ).forEach { (phaseName, data) ->
-                    data.history.forEach { session ->
-                        sb.append(
-                            "$date,$branchName,${v.type},${v.plateNumber},$phaseName,'${session.startTime},'${session.endTime},${
-                                formatDuration(
-                                    session.durationSeconds
-                                )
-                            }\n"
-                        )
-                    }
-                    if (data.isActive) sb.append("$date,$branchName,${v.type},${v.plateNumber},$phaseName,'${data.currentStartTime},STILL IN,In Progress\n")
+        allVTracks.forEach { t ->
+            listOf(
+                "Waiting" to t.waiting,
+                "Offloading" to t.offloading
+            ).forEach { (phaseName, data) ->
+                data.history.forEach { session ->
+                    sb.append(
+                        "${t.date},$branchName,${t.type},${t.plateNumber},$phaseName,'${session.startTime},'${session.endTime},${
+                            formatDuration(
+                                session.durationSeconds
+                            )
+                        }\n"
+                    )
                 }
+                if (data.isActive) sb.append("${t.date},$branchName,${t.type},${t.plateNumber},$phaseName,'${data.currentStartTime},STILL IN,In Progress\n")
             }
         }
 
