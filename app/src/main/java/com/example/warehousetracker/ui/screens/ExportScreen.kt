@@ -323,8 +323,9 @@ fun ExportScreen(
                 Button(
                     onClick = {
                         isExporting = true
-                        dashboardViewModel.exportDateRangeCSV(context, startDate, endDate)
-                        isExporting = false
+                        dashboardViewModel.exportDateRangeCSV(context, startDate, endDate) {
+                            isExporting = false
+                        }
                     },
                     modifier = Modifier
                         .fillMaxWidth()

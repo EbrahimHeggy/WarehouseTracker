@@ -332,7 +332,10 @@ class TrackingRepository {
                     it.second.totalWHSeconds > 0 ||
                             it.second.preparation.history.isNotEmpty() ||
                             it.second.cycleCount.history.isNotEmpty() ||
-                            it.second.loading.history.isNotEmpty()
+                            it.second.loading.history.isNotEmpty() ||
+                            it.second.preparation.isActive ||
+                            it.second.cycleCount.isActive ||
+                            it.second.loading.isActive
                 }
                 emp.id to empTracks
             }
@@ -354,14 +357,29 @@ class TrackingRepository {
 
     private fun getDatesBetween(startDate: String, endDate: String): List<String> {
         val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        val start = fmt.parse(startDate) ?: return emptyList()
-        val end = fmt.parse(endDate) ?: return emptyList()
+        val start = try {
+            fmt.parse(startDate.trim())
+        } catch (e: Exception) {
+            null
+        } ?: return emptyList()
+        val end = try {
+            fmt.parse(endDate.trim())
+        } catch (e: Exception) {
+            null
+        } ?: return emptyList()
 
         val dates = mutableListOf<String>()
         val cal = Calendar.getInstance()
         cal.time = start
 
-        while (!cal.time.after(end)) {
+        // Ensure we are comparing just dates by setting end comparison to end of day
+        val endCal = Calendar.getInstance()
+        endCal.time = end
+        endCal.set(Calendar.HOUR_OF_DAY, 23)
+        endCal.set(Calendar.MINUTE, 59)
+        endCal.set(Calendar.SECOND, 59)
+
+        while (cal.before(endCal)) {
             dates.add(fmt.format(cal.time))
             cal.add(Calendar.DAY_OF_MONTH, 1)
         }
