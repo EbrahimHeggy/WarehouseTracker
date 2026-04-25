@@ -44,19 +44,21 @@ class DashboardViewModel : ViewModel() {
     private val _state = MutableStateFlow(DashboardState(date = trackRepo.today()))
     val state = _state.asStateFlow()
 
-    init {
-        loadBranches()
-    }
-
     fun setTab(tab: String) {
         _state.value = _state.value.copy(activeTab = tab)
     }
 
-    fun loadBranches() {
+    fun loadBranches(defaultBranchId: String? = null) {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
             val branches = branchRepo.getBranches()
-            val selected = branches.firstOrNull()
+
+            // Try to find the default branch from profile, otherwise take the first one
+            val selected = if (!defaultBranchId.isNullOrBlank()) {
+                branches.find { it.id == defaultBranchId } ?: branches.firstOrNull()
+            } else {
+                branches.firstOrNull()
+            }
 
             // Load employee counts for all branches
             val counts = branches.associate { it.id to empRepo.getEmployeeCountByBranch(it.id) }
@@ -204,7 +206,7 @@ class DashboardViewModel : ViewModel() {
         viewModelScope.launch {
             val result = branchRepo.addBranch(name)
             if (result.isSuccess) {
-                loadBranches()
+                loadBranches(_state.value.selectedBranch?.id)
             } else {
                 Toast.makeText(
                     context,

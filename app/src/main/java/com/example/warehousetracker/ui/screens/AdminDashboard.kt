@@ -108,9 +108,15 @@ fun AdminDashboardScreen(
 ) {
     val context = LocalContext.current
     val state by dashboardViewModel.state.collectAsStateWithLifecycle()
+    val authState by authViewModel.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
     val pagerState = rememberPagerState(pageCount = { 2 })
+
+    // Initialize with admin's assigned branch
+    LaunchedEffect(authState.profile?.branchId) {
+        dashboardViewModel.loadBranches(authState.profile?.branchId)
+    }
 
     // Sync tab selection with pager
     LaunchedEffect(state.activeTab) {
