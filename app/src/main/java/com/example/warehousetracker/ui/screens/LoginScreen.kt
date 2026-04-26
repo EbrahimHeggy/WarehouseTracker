@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Email
@@ -41,8 +43,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -61,6 +67,8 @@ fun LoginScreen(
     var showPassword by remember { mutableStateOf(false) }
     var showForgotDialog by remember { mutableStateOf(false) }
     var resetEmail by remember { mutableStateOf("") }
+
+    val focusManager = LocalFocusManager.current
 
     Box(
         modifier = Modifier
@@ -111,10 +119,17 @@ fun LoginScreen(
                     label = { Text("Email") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    leadingIcon = { Icon(Icons.Default.Email, null, tint = Color.Gray) }
+                    leadingIcon = { Icon(Icons.Default.Email, null, tint = Color.Gray) },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Email,
+                        imeAction = ImeAction.Next
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                    )
                 )
 
-                // Password Field مع Show/Hide
+                // Password Field
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
@@ -131,7 +146,19 @@ fun LoginScreen(
                                 tint = Color.Gray
                             )
                         }
-                    }
+                    },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            focusManager.clearFocus()
+                            if (email.isNotBlank() && password.isNotBlank()) {
+                                authViewModel.login(email.trim(), password.trim())
+                            }
+                        }
+                    )
                 )
 
                 // Forgot Password
@@ -150,7 +177,7 @@ fun LoginScreen(
                 }
 
                 Button(
-                    onClick = { authViewModel.login(email, password) },
+                    onClick = { authViewModel.login(email.trim(), password.trim()) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
@@ -166,8 +193,6 @@ fun LoginScreen(
                     else
                         Text("Login", fontSize = 16.sp)
                 }
-
-
             }
         }
     }
@@ -211,7 +236,18 @@ fun LoginScreen(
                             label = { Text("Email") },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            leadingIcon = { Icon(Icons.Default.Email, null, tint = Color.Gray) }
+                            leadingIcon = { Icon(Icons.Default.Email, null, tint = Color.Gray) },
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Email,
+                                imeAction = ImeAction.Send
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onSend = {
+                                    if (resetEmail.isNotBlank()) {
+                                        authViewModel.resetPassword(resetEmail.trim())
+                                    }
+                                }
+                            )
                         )
                         if (state.error.isNotEmpty()) {
                             Text(state.error, color = Color.Red, fontSize = 12.sp)
@@ -222,7 +258,7 @@ fun LoginScreen(
             confirmButton = {
                 if (!state.resetEmailSent) {
                     Button(
-                        onClick = { authViewModel.resetPassword(resetEmail) },
+                        onClick = { authViewModel.resetPassword(resetEmail.trim()) },
                         colors = ButtonDefaults.buttonColors(containerColor = NavyBlue),
                         enabled = resetEmail.isNotBlank() && !state.isLoading
                     ) {

@@ -120,7 +120,7 @@ fun AdminDashboardScreen(
 
     // Sync tab selection with pager
     LaunchedEffect(state.activeTab) {
-        val targetPage = if (state.activeTab == "inbound") 0 else 1
+        val targetPage = if (state.activeTab == "outbound") 0 else 1 // Swapped: outbound is page 0
         if (pagerState.currentPage != targetPage) {
             pagerState.animateScrollToPage(targetPage)
         }
@@ -129,7 +129,7 @@ fun AdminDashboardScreen(
     // Update ViewModel when pager is swiped
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.currentPage }.collect { page ->
-            val targetTab = if (page == 0) "inbound" else "outbound"
+            val targetTab = if (page == 0) "outbound" else "inbound" // Swapped
             if (state.activeTab != targetTab) {
                 dashboardViewModel.setTab(targetTab)
             }
@@ -263,11 +263,11 @@ fun AdminDashboardScreen(
                     )
                 }
                 IconButton(onClick = {
-                    if (state.activeTab == "inbound") showAddEmployeeDialog =
+                    if (state.activeTab == "outbound") showAddEmployeeDialog =
                         true else showAddVehicleDialog = true
                 }) {
                     Icon(
-                        if (state.activeTab == "inbound") Icons.Default.PersonAdd else Icons.Default.LocalShipping,
+                        if (state.activeTab == "outbound") Icons.Default.PersonAdd else Icons.Default.LocalShipping,
                         null,
                         tint = Color.White
                     )
@@ -289,7 +289,7 @@ fun AdminDashboardScreen(
             }
         }
 
-        // ── Tab Switcher (Inbound / Outbound) ──
+        // ── Tab Switcher (Outbound / Inbound) ──
         TabRow(
             selectedTabIndex = pagerState.currentPage,
             containerColor = Color.Transparent,
@@ -306,7 +306,7 @@ fun AdminDashboardScreen(
                 selected = pagerState.currentPage == 0,
                 onClick = { scope.launch { pagerState.animateScrollToPage(0) } }) {
                 Text(
-                    "INBOUND",
+                    "OUTBOUND",
                     modifier = Modifier.padding(12.dp),
                     fontWeight = FontWeight.Bold,
                     fontSize = 13.sp
@@ -316,7 +316,7 @@ fun AdminDashboardScreen(
                 selected = pagerState.currentPage == 1,
                 onClick = { scope.launch { pagerState.animateScrollToPage(1) } }) {
                 Text(
-                    "OUTBOUND",
+                    "INBOUND",
                     modifier = Modifier.padding(12.dp),
                     fontWeight = FontWeight.Bold,
                     fontSize = 13.sp
@@ -470,7 +470,7 @@ fun AdminDashboardScreen(
                             beyondViewportPageCount = 1
                         ) { page ->
                             if (page == 0) {
-                                // INBOUND CONTENT
+                                // OUTBOUND CONTENT (Employees - Swapped from Inbound)
                                 val filteredEmps =
                                     if (searchQuery.isBlank()) state.employees else state.employees.filter {
                                         it.name.contains(
@@ -507,7 +507,7 @@ fun AdminDashboardScreen(
                                     }
                                 }
                             } else {
-                                // OUTBOUND CONTENT (Vehicles)
+                                // INBOUND CONTENT (Vehicles - Swapped from Outbound)
                                 val filteredVTracks =
                                     if (searchQuery.isBlank()) state.vehicleTracks else state.vehicleTracks.filter {
                                         it.type.contains(
@@ -874,7 +874,7 @@ fun SummaryCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    "SUMMARY - ${branchName.uppercase()}",
+                    "OUTBOUND SUMMARY - ${branchName.uppercase()}", // Text Swapped
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     fontSize = 10.sp
@@ -1034,7 +1034,7 @@ fun VehicleSummaryCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    "OUTBOUND SUMMARY - ${branchName.uppercase()}",
+                    "INBOUND SUMMARY - ${branchName.uppercase()}", // Text Swapped
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     fontSize = 10.sp

@@ -27,12 +27,12 @@ data class DashboardState(
     val employees: List<Employee> = emptyList(),
     val tracks: Map<String, EmployeeTrack> = emptyMap(),
 
-    // Outbound - Now based on visits/tracks
+    // Inbound - Now based on visits/tracks (Swapped from Outbound)
     val vehicleTracks: List<VehicleTrack> = emptyList(),
     
     val isLoading: Boolean = false,
     val date: String = "",
-    val activeTab: String = "inbound" // "inbound" or "outbound"
+    val activeTab: String = "outbound" // "outbound" (Employees) or "inbound" (Vehicles)
 )
 
 class DashboardViewModel : ViewModel() {
@@ -248,12 +248,12 @@ class DashboardViewModel : ViewModel() {
 
     fun exportCSV(context: Context) {
         viewModelScope.launch {
-            if (_state.value.activeTab == "inbound") exportInboundCSV(context)
-            else exportOutboundCSV(context)
+            if (_state.value.activeTab == "outbound") exportOutboundCSV(context)
+            else exportInboundCSV(context)
         }
     }
 
-    private fun exportInboundCSV(context: Context) {
+    private fun exportOutboundCSV(context: Context) { // Swapped logic: Inbound report for Outbound tab (Employees)
         val employees = _state.value.employees
         val tracks = _state.value.tracks
         val branch = _state.value.selectedBranch
@@ -261,7 +261,7 @@ class DashboardViewModel : ViewModel() {
         val date = _state.value.date
         val sb = StringBuilder()
 
-        sb.append("--- INBOUND SUMMARY REPORT ---\n")
+        sb.append("--- OUTBOUND SUMMARY REPORT ---\n")
         sb.append("Branch,Name,Code,Prep Total,Cycle Total,Loading Total,Total WH Time\n")
         employees.forEach { emp ->
             val t = tracks[emp.id] ?: return@forEach
@@ -293,17 +293,17 @@ class DashboardViewModel : ViewModel() {
                 if (data.isActive) sb.append("$branchName,${emp.name},${emp.code},$phaseName,'${data.currentStartTime},STILL IN,In Progress\n")
             }
         }
-        shareFile(context, sb.toString(), "$branchName - Inbound - $date")
+        shareFile(context, sb.toString(), "$branchName - Outbound - $date")
     }
 
-    private fun exportOutboundCSV(context: Context) {
+    private fun exportInboundCSV(context: Context) { // Swapped logic: Outbound report for Inbound tab (Vehicles)
         val vTracks = _state.value.vehicleTracks
         val branch = _state.value.selectedBranch
         val branchName = branch?.name ?: "Branch"
         val date = _state.value.date
         val sb = StringBuilder()
 
-        sb.append("--- OUTBOUND SUMMARY REPORT ---\n")
+        sb.append("--- INBOUND SUMMARY REPORT ---\n")
         sb.append("Branch,Type,Plate Number,Waiting Total,Offload Total,Total Time\n")
         vTracks.forEach { t ->
             sb.append("$branchName,${t.type},${t.plateNumber},")
@@ -331,7 +331,7 @@ class DashboardViewModel : ViewModel() {
                 if (data.isActive) sb.append("$branchName,${t.type},${t.plateNumber},$phaseName,'${data.currentStartTime},STILL IN,In Progress\n")
             }
         }
-        shareFile(context, sb.toString(), "$branchName - Outbound - $date")
+        shareFile(context, sb.toString(), "$branchName - Inbound - $date")
     }
 
     private fun shareFile(context: Context, content: String, fileName: String) {
@@ -360,19 +360,19 @@ class DashboardViewModel : ViewModel() {
     ) {
         viewModelScope.launch {
             try {
-                if (_state.value.activeTab == "inbound") exportInboundRangeCSV(
+                if (_state.value.activeTab == "outbound") exportOutboundRangeCSV(
                     context,
                     startDate,
                     endDate
                 )
-                else exportOutboundRangeCSV(context, startDate, endDate)
+                else exportInboundRangeCSV(context, startDate, endDate)
             } finally {
                 onComplete()
             }
         }
     }
 
-    private suspend fun exportInboundRangeCSV(
+    private suspend fun exportOutboundRangeCSV( // Swapped logic
         context: Context,
         startDate: String,
         endDate: String
@@ -384,7 +384,7 @@ class DashboardViewModel : ViewModel() {
         val allTracks = trackRepo.getTracksForDateRange(employees, startDate, endDate)
         val sb = StringBuilder()
 
-        sb.append("=== INBOUND SUMMARY REPORT ($startDate to $endDate) ===\n")
+        sb.append("=== OUTBOUND SUMMARY REPORT ($startDate to $endDate) ===\n")
         sb.append("Branch,Name,Code,Total Prep,Total Cycle,Total Loading,Total WH Time\n")
         employees.forEach { emp ->
             val empTracks = allTracks[emp.id] ?: emptyList()
@@ -445,10 +445,10 @@ class DashboardViewModel : ViewModel() {
         }
 
         val period = if (startDate == endDate) startDate else "${startDate}_to_${endDate}"
-        shareFile(context, sb.toString(), "$branchName - Inbound - $period")
+        shareFile(context, sb.toString(), "$branchName - Outbound - $period")
     }
 
-    private suspend fun exportOutboundRangeCSV(
+    private suspend fun exportInboundRangeCSV( // Swapped logic
         context: Context,
         startDate: String,
         endDate: String
@@ -459,7 +459,7 @@ class DashboardViewModel : ViewModel() {
         val allVTracks = trackRepo.getVehicleTracksForDateRange(branchId, startDate, endDate)
         val sb = StringBuilder()
 
-        sb.append("=== OUTBOUND SUMMARY REPORT ($startDate to $endDate) ===\n")
+        sb.append("=== INBOUND SUMMARY REPORT ($startDate to $endDate) ===\n")
         sb.append("Date,Branch,Type,Plate Number,Waiting,Offload,Total Time\n")
 
         allVTracks.forEach { t ->
@@ -489,6 +489,6 @@ class DashboardViewModel : ViewModel() {
         }
 
         val period = if (startDate == endDate) startDate else "${startDate}_to_${endDate}"
-        shareFile(context, sb.toString(), "$branchName - Outbound - $period")
+        shareFile(context, sb.toString(), "$branchName - Inbound - $period")
     }
 }
