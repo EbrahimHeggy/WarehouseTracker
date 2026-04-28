@@ -38,6 +38,7 @@ import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -57,8 +58,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.warehousetracker.AmberColor
 import com.example.warehousetracker.GreenColor
-import com.example.warehousetracker.LightBg
-import com.example.warehousetracker.NavyBlue
 import com.example.warehousetracker.RedColor
 import com.example.warehousetracker.data.model.Branch
 import com.example.warehousetracker.data.model.Employee
@@ -95,7 +94,6 @@ fun ImportEmployeesScreen(
     var errorMsg by remember { mutableStateOf("") }
     var fileSelected by remember { mutableStateOf(false) }
 
-    // جيب الفروع والموظفين الموجودين من Firebase
     LaunchedEffect(Unit) {
         availableBranches = branchRepo.getBranches()
         allExistingEmployees = empRepo.getAllEmployees()
@@ -228,7 +226,6 @@ fun ImportEmployeesScreen(
         }
     }
 
-    // Stats
     val matchedCount =
         importedList.count { it.resolvedBranchId.isNotBlank() && it.status != "exists" }
     val existsCount = importedList.count { it.status == "exists" }
@@ -238,7 +235,7 @@ fun ImportEmployeesScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(NavyBlue)
+            .background(MaterialTheme.colorScheme.background)
             .systemBarsPadding()
     ) {
         // Header
@@ -246,7 +243,7 @@ fun ImportEmployeesScreen(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 16.dp)) {
             IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
-                Icon(Icons.Default.ArrowBack, null, tint = Color.White)
+                Icon(Icons.Default.ArrowBack, null, tint = MaterialTheme.colorScheme.onSurface)
             }
             Column(
                 modifier = Modifier.align(Alignment.Center),
@@ -254,18 +251,22 @@ fun ImportEmployeesScreen(
             ) {
                 Text(
                     "Import Employees",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold
                 )
-                Text("All Branches", color = Color.White.copy(0.7f), fontSize = 12.sp)
+                Text(
+                    "All Branches",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp
+                )
             }
         }
 
         Card(
             modifier = Modifier.fillMaxSize(),
             shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-            colors = CardDefaults.cardColors(containerColor = LightBg)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background)
         ) {
             Column(modifier = Modifier
                 .fillMaxSize()
@@ -277,8 +278,15 @@ fun ImportEmployeesScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = NavyBlue.copy(0.05f)),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, NavyBlue.copy(0.15f))
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primary.copy(
+                            0.05f
+                        )
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.primary.copy(0.15f)
+                    )
                 ) {
                     Column(
                         modifier = Modifier.padding(14.dp),
@@ -291,39 +299,38 @@ fun ImportEmployeesScreen(
                             Icon(
                                 Icons.Default.Info,
                                 null,
-                                tint = NavyBlue,
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(18.dp)
                             )
                             Text(
                                 "File Format",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp,
-                                color = NavyBlue
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                         Text(
                             "• Column A: Name  |  Column B: Code  |  Column C: Branch",
                             fontSize = 12.sp,
-                            color = Color.Gray
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
                             "• Branch name must match exactly (e.g. Luxor, Cairo)",
                             fontSize = 12.sp,
-                            color = Color.Gray
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
                             "• First row = header (skipped automatically)",
                             fontSize = 12.sp,
-                            color = Color.Gray
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
-                        // Available branches
                         if (availableBranches.isNotEmpty()) {
                             Spacer(Modifier.height(4.dp))
                             Text(
                                 "Available branches: ${availableBranches.joinToString(", ") { it.name }}",
                                 fontSize = 11.sp,
-                                color = NavyBlue,
+                                color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.Medium
                             )
                         }
@@ -347,21 +354,27 @@ fun ImportEmployeesScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = NavyBlue),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Icon(Icons.Default.UploadFile, null, modifier = Modifier.size(20.dp))
+                    Icon(
+                        Icons.Default.UploadFile,
+                        null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
                     Spacer(Modifier.width(8.dp))
                     Text(
                         if (fileSelected) "Change File" else "Select Excel / CSV",
                         fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onPrimary
                     )
                 }
 
                 if (errorMsg.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
-                    Text(errorMsg, color = Color.Red, fontSize = 12.sp)
+                    Text(errorMsg, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
                 }
 
                 // Stats Row
@@ -371,10 +384,20 @@ fun ImportEmployeesScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        StatChip(Modifier.weight(1f), "${importedList.size}", "Total", NavyBlue)
+                        StatChip(
+                            Modifier.weight(1f),
+                            "${importedList.size}",
+                            "Total",
+                            MaterialTheme.colorScheme.primary
+                        )
                         StatChip(Modifier.weight(1f), "$matchedCount", "New", GreenColor)
                         if (existsCount > 0)
-                            StatChip(Modifier.weight(1f), "$existsCount", "Exists", NavyBlue)
+                            StatChip(
+                                Modifier.weight(1f),
+                                "$existsCount",
+                                "Exists",
+                                MaterialTheme.colorScheme.primary
+                            )
                         if (unmatchedCount > 0)
                             StatChip(Modifier.weight(1f), "$unmatchedCount", "No Branch", RedColor)
                     }
@@ -387,7 +410,11 @@ fun ImportEmployeesScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("$selectedCount ready to import", fontSize = 13.sp, color = Color.Gray)
+                        Text(
+                            "$selectedCount ready to import",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                         TextButton(onClick = {
                             val allSelected =
                                 importedList.filter { it.resolvedBranchId.isNotBlank() && it.status != "exists" }
@@ -401,7 +428,7 @@ fun ImportEmployeesScreen(
                             Text(
                                 if (importedList.filter { it.resolvedBranchId.isNotBlank() && it.status != "exists" }
                                         .all { it.isSelected }) "Deselect All" else "Select All",
-                                color = NavyBlue, fontSize = 12.sp
+                                color = MaterialTheme.colorScheme.primary, fontSize = 12.sp
                             )
                         }
                     }
@@ -412,7 +439,6 @@ fun ImportEmployeesScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         contentPadding = PaddingValues(bottom = 12.dp)
                     ) {
-                        // Group by branch
                         val grouped = importedList.groupBy { it.branchName.ifBlank { "No Branch" } }
                         grouped.forEach { (branchName, emps) ->
                             item {
@@ -420,7 +446,7 @@ fun ImportEmployeesScreen(
                                     branchName.uppercase(),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color.Gray,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(vertical = 4.dp)
                                 )
                             }
@@ -483,18 +509,20 @@ fun ImportEmployeesScreen(
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Spacer(Modifier.width(8.dp))
-                                Text("Importing...", fontSize = 15.sp)
+                                Text("Importing...", fontSize = 15.sp, color = Color.White)
                             } else {
                                 Icon(
                                     Icons.Default.CloudUpload,
                                     null,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(20.dp),
+                                    tint = Color.White
                                 )
                                 Spacer(Modifier.width(8.dp))
                                 Text(
                                     "Import $selectedCount Employees",
                                     fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
                                 )
                             }
                         }
@@ -527,14 +555,20 @@ fun ImportEmployeesScreen(
                                 )
                                 Text(
                                     "$successCount imported${if (errorCount > 0) " • $errorCount failed" else ""}",
-                                    fontSize = 13.sp, color = Color.Gray
+                                    fontSize = 13.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Button(
                                     onClick = onImportDone,
-                                    colors = ButtonDefaults.buttonColors(containerColor = NavyBlue),
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                                     shape = RoundedCornerShape(8.dp),
                                     modifier = Modifier.fillMaxWidth()
-                                ) { Text("Back to Dashboard") }
+                                ) {
+                                    Text(
+                                        "Back to Dashboard",
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                }
                             }
                         }
                     }
@@ -548,13 +582,17 @@ fun ImportEmployeesScreen(
                         Icon(
                             Icons.Default.UploadFile,
                             null,
-                            tint = Color.Gray.copy(0.4f),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.4f),
                             modifier = Modifier.size(64.dp)
                         )
-                        Text("No file selected", color = Color.Gray, fontSize = 14.sp)
+                        Text(
+                            "No file selected",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 14.sp
+                        )
                         Text(
                             "Select an Excel or CSV file",
-                            color = Color.Gray.copy(0.7f),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f),
                             fontSize = 12.sp
                         )
                     }
@@ -565,7 +603,6 @@ fun ImportEmployeesScreen(
     }
 }
 
-// ── Row with Branch ──────────────────────
 @Composable
 fun ImportRowWithBranch(emp: ImportedEmployee, onToggle: () -> Unit) {
     val hasBranch = emp.resolvedBranchId.isNotBlank()
@@ -577,10 +614,10 @@ fun ImportRowWithBranch(emp: ImportedEmployee, onToggle: () -> Unit) {
         colors = CardDefaults.cardColors(
             containerColor = when (emp.status) {
                 "success" -> GreenColor.copy(0.08f)
-                "error" -> RedColor.copy(0.08f)
-                "no_branch" -> RedColor.copy(0.05f)
-                "exists" -> NavyBlue.copy(0.05f)
-                else -> Color.White
+                "error" -> MaterialTheme.colorScheme.error.copy(0.08f)
+                "no_branch" -> MaterialTheme.colorScheme.error.copy(0.05f)
+                "exists" -> MaterialTheme.colorScheme.primary.copy(0.05f)
+                else -> MaterialTheme.colorScheme.surface
             }
         )
     ) {
@@ -602,7 +639,7 @@ fun ImportRowWithBranch(emp: ImportedEmployee, onToggle: () -> Unit) {
                 "error" -> Icon(
                     Icons.Default.Error,
                     null,
-                    tint = RedColor,
+                    tint = MaterialTheme.colorScheme.error,
                     modifier = Modifier.size(22.dp)
                 )
 
@@ -616,7 +653,7 @@ fun ImportRowWithBranch(emp: ImportedEmployee, onToggle: () -> Unit) {
                 "exists" -> Icon(
                     Icons.Default.Info,
                     null,
-                    tint = NavyBlue,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(22.dp)
                 )
 
@@ -624,7 +661,7 @@ fun ImportRowWithBranch(emp: ImportedEmployee, onToggle: () -> Unit) {
                     checked = emp.isSelected && hasBranch && !alreadyExists,
                     onCheckedChange = { onToggle() },
                     enabled = hasBranch && !alreadyExists,
-                    colors = CheckboxDefaults.colors(checkedColor = NavyBlue)
+                    colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary)
                 )
             }
 
@@ -633,9 +670,9 @@ fun ImportRowWithBranch(emp: ImportedEmployee, onToggle: () -> Unit) {
                     .size(36.dp)
                     .clip(CircleShape)
                     .background(
-                        if (hasBranch && !alreadyExists) NavyBlue.copy(0.1f) else if (alreadyExists) NavyBlue.copy(
-                            0.05f
-                        ) else RedColor.copy(0.1f)
+                        if (hasBranch && !alreadyExists) MaterialTheme.colorScheme.primary.copy(0.1f)
+                        else if (alreadyExists) MaterialTheme.colorScheme.primary.copy(0.05f)
+                        else MaterialTheme.colorScheme.error.copy(0.1f)
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -643,9 +680,9 @@ fun ImportRowWithBranch(emp: ImportedEmployee, onToggle: () -> Unit) {
                     emp.name.split(" ").take(2).map { it.firstOrNull()?.uppercase() ?: "" }
                         .joinToString(""),
                     fontSize = 12.sp, fontWeight = FontWeight.Bold,
-                    color = if (hasBranch && !alreadyExists) NavyBlue else if (alreadyExists) NavyBlue.copy(
-                        0.4f
-                    ) else RedColor
+                    color = if (hasBranch && !alreadyExists) MaterialTheme.colorScheme.primary
+                    else if (alreadyExists) MaterialTheme.colorScheme.primary.copy(0.4f)
+                    else MaterialTheme.colorScheme.error
                 )
             }
 
@@ -654,9 +691,13 @@ fun ImportRowWithBranch(emp: ImportedEmployee, onToggle: () -> Unit) {
                     emp.name,
                     fontWeight = FontWeight.Medium,
                     fontSize = 13.sp,
-                    color = if (alreadyExists) Color.Gray else Color.Black
+                    color = if (alreadyExists) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
                 )
-                Text("Code: ${emp.code.ifBlank { "—" }}", color = Color.Gray, fontSize = 11.sp)
+                Text(
+                    "Code: ${emp.code.ifBlank { "—" }}",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 11.sp
+                )
             }
 
             Column(horizontalAlignment = Alignment.End) {
@@ -671,7 +712,7 @@ fun ImportRowWithBranch(emp: ImportedEmployee, onToggle: () -> Unit) {
                     "error" -> Text(
                         "Failed ✗",
                         fontSize = 11.sp,
-                        color = RedColor,
+                        color = MaterialTheme.colorScheme.error,
                         fontWeight = FontWeight.Medium
                     )
 
@@ -685,14 +726,14 @@ fun ImportRowWithBranch(emp: ImportedEmployee, onToggle: () -> Unit) {
                     "exists" -> Text(
                         "Already in system",
                         fontSize = 10.sp,
-                        color = NavyBlue.copy(0.6f),
+                        color = MaterialTheme.colorScheme.primary.copy(0.6f),
                         fontWeight = FontWeight.Medium
                     )
 
                     else -> if (hasBranch && emp.isSelected) Text(
                         "Ready",
                         fontSize = 11.sp,
-                        color = NavyBlue.copy(0.6f)
+                        color = MaterialTheme.colorScheme.primary.copy(0.6f)
                     )
                 }
             }
@@ -700,7 +741,6 @@ fun ImportRowWithBranch(emp: ImportedEmployee, onToggle: () -> Unit) {
     }
 }
 
-// ── Stat Chip ────────────────────────────
 @Composable
 fun StatChip(modifier: Modifier, value: String, label: String, color: Color) {
     Card(

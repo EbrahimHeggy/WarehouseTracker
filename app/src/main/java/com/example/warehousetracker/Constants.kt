@@ -2,11 +2,11 @@ package com.example.warehousetracker
 
 import androidx.compose.ui.graphics.Color
 
-val NavyBlue = Color(0xFF1a3a5c)
-val LightBg = Color(0xFFF4F6F9)
-val GreenColor = Color(0xFF4CAF50)
-val RedColor = Color(0xFFE53935)
-val AmberColor = Color(0xFFFFA000)
+val NavyBlue = Color(0xFF1F4E5F)
+val LightBg = Color(0xFFF6F8FA)
+val GreenColor = Color(0xFF1F9D68)
+val RedColor = Color(0xFFD94B4B)
+val AmberColor = Color(0xFFE8A317)
 
 fun formatDuration(totalSeconds: Int): String {
     val hours = totalSeconds / 3600

@@ -15,7 +15,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.DateRange
@@ -29,6 +31,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,14 +41,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.warehousetracker.LightBg
-import com.example.warehousetracker.NavyBlue
 import com.example.warehousetracker.ui.viewmodel.DashboardViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -79,10 +79,12 @@ fun ExportScreen(
         return "$year-${month.padStart(2, '0')}-${day.padStart(2, '0')}"
     }
 
+    val scrollState = rememberScrollState()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(NavyBlue)
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding() // AVOID SYSTEM BUTTONS
     ) {
@@ -91,7 +93,7 @@ fun ExportScreen(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 16.dp)) {
             IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
-                Icon(Icons.Default.ArrowBack, null, tint = Color.White)
+                Icon(Icons.Default.ArrowBack, null, tint = MaterialTheme.colorScheme.onSurface)
             }
             Column(
                 modifier = Modifier.align(Alignment.Center),
@@ -99,13 +101,13 @@ fun ExportScreen(
             ) {
                 Text(
                     "Export Report (${state.activeTab.uppercase()})",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     state.selectedBranch?.name ?: "",
-                    color = Color.White.copy(0.7f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp
                 )
             }
@@ -114,210 +116,228 @@ fun ExportScreen(
         Card(
             modifier = Modifier.fillMaxSize(),
             shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-            colors = CardDefaults.cardColors(containerColor = LightBg)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .padding(20.dp)
             ) {
-                Spacer(Modifier.height(4.dp))
-
-                // Mode Selector
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(scrollState),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    ModeCard(
-                        modifier = Modifier.weight(1f),
-                        title = "Today",
-                        subtitle = today,
-                        icon = Icons.Default.Today,
-                        isSelected = exportMode == "today",
-                        onClick = {
-                            exportMode = "today"
-                            startDate = today
-                            endDate = today
-                        }
-                    )
-                    ModeCard(
-                        modifier = Modifier.weight(1f),
-                        title = "Date Range",
-                        subtitle = "Custom period",
-                        icon = Icons.Default.DateRange,
-                        isSelected = exportMode == "range",
-                        onClick = { exportMode = "range" }
-                    )
-                }
+                    Spacer(Modifier.height(4.dp))
 
-                // Date Range Inputs
-                if (exportMode == "range") {
+                    // Mode Selector
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        ModeCard(
+                            modifier = Modifier.weight(1f),
+                            title = "Today",
+                            subtitle = today,
+                            icon = Icons.Default.Today,
+                            isSelected = exportMode == "today",
+                            onClick = {
+                                exportMode = "today"
+                                startDate = today
+                                endDate = today
+                            }
+                        )
+                        ModeCard(
+                            modifier = Modifier.weight(1f),
+                            title = "Date Range",
+                            subtitle = "Custom period",
+                            icon = Icons.Default.DateRange,
+                            isSelected = exportMode == "range",
+                            onClick = { exportMode = "range" }
+                        )
+                    }
+
+                    // Date Range Inputs
+                    if (exportMode == "range") {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+
+                                // Start Date
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(
+                                        "From",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        OutlinedTextField(
+                                            value = startDay,
+                                            onValueChange = {
+                                                if (it.length <= 2) {
+                                                    startDay = it
+                                                    startDate = buildDate(it, startMonth, startYear)
+                                                }
+                                            },
+                                            label = { Text("Day") },
+                                            modifier = Modifier.weight(1f),
+                                            singleLine = true
+                                        )
+                                        OutlinedTextField(
+                                            value = startMonth,
+                                            onValueChange = {
+                                                if (it.length <= 2) {
+                                                    startMonth = it
+                                                    startDate = buildDate(startDay, it, startYear)
+                                                }
+                                            },
+                                            label = { Text("Month") },
+                                            modifier = Modifier.weight(1f),
+                                            singleLine = true
+                                        )
+                                        OutlinedTextField(
+                                            value = startYear,
+                                            onValueChange = {
+                                                if (it.length <= 4) {
+                                                    startYear = it
+                                                    startDate = buildDate(startDay, startMonth, it)
+                                                }
+                                            },
+                                            label = { Text("Year") },
+                                            modifier = Modifier.weight(1.5f),
+                                            singleLine = true
+                                        )
+                                    }
+                                    Text(
+                                        startDate,
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+
+                                HorizontalDivider(
+                                    color = MaterialTheme.colorScheme.onSurface.copy(
+                                        0.1f
+                                    )
+                                )
+
+                                // End Date
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(
+                                        "To",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        OutlinedTextField(
+                                            value = endDay,
+                                            onValueChange = {
+                                                if (it.length <= 2) {
+                                                    endDay = it
+                                                    endDate = buildDate(it, endMonth, endYear)
+                                                }
+                                            },
+                                            label = { Text("Day") },
+                                            modifier = Modifier.weight(1f),
+                                            singleLine = true
+                                        )
+                                        OutlinedTextField(
+                                            value = endMonth,
+                                            onValueChange = {
+                                                if (it.length <= 2) {
+                                                    endMonth = it
+                                                    endDate = buildDate(endDay, it, endYear)
+                                                }
+                                            },
+                                            label = { Text("Month") },
+                                            modifier = Modifier.weight(1f),
+                                            singleLine = true
+                                        )
+                                        OutlinedTextField(
+                                            value = endYear,
+                                            onValueChange = {
+                                                if (it.length <= 4) {
+                                                    endYear = it
+                                                    endDate = buildDate(endDay, endMonth, it)
+                                                }
+                                            },
+                                            label = { Text("Year") },
+                                            modifier = Modifier.weight(1.5f),
+                                            singleLine = true
+                                        )
+                                    }
+                                    Text(
+                                        endDate,
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // What's included info
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White)
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primary.copy(
+                                0.05f
+                            )
+                        )
                     ) {
                         Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                            modifier = Modifier.padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-
-                            // Start Date
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text(
-                                    "From",
-                                    fontSize = 12.sp,
-                                    color = Color.Gray,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    OutlinedTextField(
-                                        value = startDay,
-                                        onValueChange = {
-                                            if (it.length <= 2) {
-                                                startDay = it
-                                                startDate = buildDate(it, startMonth, startYear)
-                                            }
-                                        },
-                                        label = { Text("Day") },
-                                        modifier = Modifier.weight(1f),
-                                        singleLine = true
-                                    )
-                                    OutlinedTextField(
-                                        value = startMonth,
-                                        onValueChange = {
-                                            if (it.length <= 2) {
-                                                startMonth = it
-                                                startDate = buildDate(startDay, it, startYear)
-                                            }
-                                        },
-                                        label = { Text("Month") },
-                                        modifier = Modifier.weight(1f),
-                                        singleLine = true
-                                    )
-                                    OutlinedTextField(
-                                        value = startYear,
-                                        onValueChange = {
-                                            if (it.length <= 4) {
-                                                startYear = it
-                                                startDate = buildDate(startDay, startMonth, it)
-                                            }
-                                        },
-                                        label = { Text("Year") },
-                                        modifier = Modifier.weight(1.5f),
-                                        singleLine = true
-                                    )
-                                }
-                                Text(
-                                    startDate,
-                                    fontSize = 12.sp,
-                                    color = NavyBlue,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-
-                            HorizontalDivider(color = Color.Gray.copy(0.1f))
-
-                            // End Date
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text(
-                                    "To",
-                                    fontSize = 12.sp,
-                                    color = Color.Gray,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    OutlinedTextField(
-                                        value = endDay,
-                                        onValueChange = {
-                                            if (it.length <= 2) {
-                                                endDay = it
-                                                endDate = buildDate(it, endMonth, endYear)
-                                            }
-                                        },
-                                        label = { Text("Day") },
-                                        modifier = Modifier.weight(1f),
-                                        singleLine = true
-                                    )
-                                    OutlinedTextField(
-                                        value = endMonth,
-                                        onValueChange = {
-                                            if (it.length <= 2) {
-                                                endMonth = it
-                                                endDate = buildDate(endDay, it, endYear)
-                                            }
-                                        },
-                                        label = { Text("Month") },
-                                        modifier = Modifier.weight(1f),
-                                        singleLine = true
-                                    )
-                                    OutlinedTextField(
-                                        value = endYear,
-                                        onValueChange = {
-                                            if (it.length <= 4) {
-                                                endYear = it
-                                                endDate = buildDate(endDay, endMonth, it)
-                                            }
-                                        },
-                                        label = { Text("Year") },
-                                        modifier = Modifier.weight(1.5f),
-                                        singleLine = true
-                                    )
-                                }
-                                Text(
-                                    endDate,
-                                    fontSize = 12.sp,
-                                    color = NavyBlue,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
+                            Text(
+                                "Report includes:",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                if (state.activeTab == "inbound") "✓ Summary per vehicle (total hours)" else "✓ Summary per employee (total hours)",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                "✓ Daily breakdown (day by day)",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                "✓ Detailed sessions (IN/OUT times)",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                if (state.activeTab == "inbound") "✓ All phases (Waiting, Offloading)" else "✓ All phases (Prep, Cycle, Loading)",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 }
 
-                // What's included info
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = NavyBlue.copy(0.05f))
-                ) {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text(
-                            "Report includes:",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = NavyBlue
-                        )
-                        Text(
-                            if (state.activeTab == "inbound") "✓ Summary per employee (total hours)" else "✓ Summary per vehicle (total hours)",
-                            fontSize = 12.sp,
-                            color = Color.Gray
-                        )
-                        Text("✓ Daily breakdown (day by day)", fontSize = 12.sp, color = Color.Gray)
-                        Text(
-                            "✓ Detailed sessions (IN/OUT times)",
-                            fontSize = 12.sp,
-                            color = Color.Gray
-                        )
-                        Text(
-                            if (state.activeTab == "inbound") "✓ All phases (Prep, Cycle, Loading)" else "✓ All phases (Waiting, Offloading)",
-                            fontSize = 12.sp,
-                            color = Color.Gray
-                        )
-                    }
-                }
-
-                Spacer(Modifier.weight(1f))
+                Spacer(Modifier.height(16.dp))
 
                 // Export Button
                 Button(
@@ -330,26 +350,32 @@ fun ExportScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = NavyBlue),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     shape = RoundedCornerShape(14.dp),
                     enabled = !isExporting
                 ) {
                     if (isExporting) {
                         CircularProgressIndicator(
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(Modifier.width(8.dp))
                         Text("Exporting...", fontSize = 16.sp)
                     } else {
-                        Icon(Icons.Default.FileDownload, null, modifier = Modifier.size(22.dp))
+                        Icon(
+                            Icons.Default.FileDownload,
+                            null,
+                            modifier = Modifier.size(22.dp),
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
                         Spacer(Modifier.width(10.dp))
                         val labelPrefix =
-                            if (state.activeTab == "inbound") "Employees" else "Vehicles"
+                            if (state.activeTab == "inbound") "Vehicles" else "Employees"
                         Text(
                             if (exportMode == "today") "Export Today's $labelPrefix" else "Export $startDate → $endDate",
                             fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimary
                         )
                     }
                 }
@@ -371,7 +397,7 @@ fun ModeCard(
         modifier = modifier.clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) NavyBlue else Color.White
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(if (isSelected) 4.dp else 1.dp)
     ) {
@@ -382,19 +408,19 @@ fun ModeCard(
         ) {
             Icon(
                 icon, null,
-                tint = if (isSelected) Color.White else NavyBlue,
+                tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(24.dp)
             )
             Text(
                 title,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (isSelected) Color.White else NavyBlue
+                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
             )
             Text(
                 subtitle,
                 fontSize = 10.sp,
-                color = if (isSelected) Color.White.copy(0.7f) else Color.Gray
+                color = if (isSelected) MaterialTheme.colorScheme.onPrimary.copy(0.7f) else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

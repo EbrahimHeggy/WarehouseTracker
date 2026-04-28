@@ -5,33 +5,30 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -42,19 +39,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.warehousetracker.GreenColor
-import com.example.warehousetracker.NavyBlue
+import com.example.warehousetracker.ui.components.SectionHeading
+import com.example.warehousetracker.ui.components.WarehouseSectionCard
 import com.example.warehousetracker.ui.viewmodel.AuthViewModel
 
 @Composable
@@ -73,77 +67,85 @@ fun LoginScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(NavyBlue),
+            .background(MaterialTheme.colorScheme.background)
+            .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(28.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+
+            WarehouseSectionCard(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(24.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(CircleShape)
-                        .background(NavyBlue),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.Home,
-                        null,
-                        tint = Color.White,
-                        modifier = Modifier.size(36.dp)
-                    )
-                }
-
-                Text(
-                    "Warehouse Manager",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = NavyBlue
+                SectionHeading(
+                    title = "Sign in",
+                    subtitle = "Use your work account to continue."
                 )
-                Text("Sign in to continue", fontSize = 13.sp, color = Color.Gray)
-                Spacer(Modifier.height(4.dp))
 
-                // Email Field
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
                     label = { Text("Email") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    leadingIcon = { Icon(Icons.Default.Email, null, tint = Color.Gray) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Email,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Email,
                         imeAction = ImeAction.Next
                     ),
                     keyboardActions = KeyboardActions(
                         onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                    ),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        focusedBorderColor = MaterialTheme.colorScheme.outline,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.surfaceVariant
                     )
                 )
 
-                // Password Field
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
                     label = { Text("Password") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
-                    leadingIcon = { Icon(Icons.Default.Lock, null, tint = Color.Gray) },
+                    visualTransformation = if (showPassword) {
+                        VisualTransformation.None
+                    } else {
+                        PasswordVisualTransformation()
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
                     trailingIcon = {
                         IconButton(onClick = { showPassword = !showPassword }) {
                             Icon(
-                                if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = if (showPassword) "Hide password" else "Show password",
-                                tint = Color.Gray
+                                imageVector = if (showPassword) {
+                                    Icons.Default.VisibilityOff
+                                } else {
+                                    Icons.Default.Visibility
+                                },
+                                contentDescription = if (showPassword) {
+                                    "Hide password"
+                                } else {
+                                    "Show password"
+                                },
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     },
@@ -158,46 +160,60 @@ fun LoginScreen(
                                 authViewModel.login(email.trim(), password.trim())
                             }
                         }
+                    ),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        focusedBorderColor = MaterialTheme.colorScheme.outline,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.surfaceVariant
                     )
                 )
 
-                // Forgot Password
                 Text(
-                    "Forgot Password?",
-                    fontSize = 12.sp,
-                    color = NavyBlue,
-                    fontWeight = FontWeight.Medium,
+                    text = "Forgot password?",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
                         .align(Alignment.End)
                         .clickable { showForgotDialog = true }
                 )
 
                 if (state.error.isNotEmpty()) {
-                    Text(state.error, color = Color.Red, fontSize = 12.sp)
+                    Text(
+                        text = state.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
 
                 Button(
                     onClick = { authViewModel.login(email.trim(), password.trim()) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = NavyBlue),
-                    shape = RoundedCornerShape(8.dp),
-                    enabled = !state.isLoading && email.isNotBlank() && password.isNotBlank()
+                        .height(54.dp),
+                    enabled = !state.isLoading && email.isNotBlank() && password.isNotBlank(),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
-                    if (state.isLoading)
+                    if (state.isLoading) {
                         CircularProgressIndicator(
-                            color = Color.White,
-                            modifier = Modifier.size(20.dp)
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp
                         )
-                    else
-                        Text("Login", fontSize = 16.sp)
+                    } else {
+                        Text(
+                            text = "Sign in",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
                 }
             }
         }
     }
 
-    // ── Forgot Password Dialog ───────────
     if (showForgotDialog) {
         AlertDialog(
             onDismissRequest = {
@@ -208,35 +224,37 @@ fun LoginScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     if (state.resetEmailSent) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.CheckCircle,
-                                null,
-                                tint = GreenColor,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Text(
-                                "Reset email sent! Check your inbox.",
-                                fontSize = 14.sp,
-                                color = GreenColor
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = GreenColor,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Text(
+                            text = "Reset email sent. Check your inbox and follow the link to update your password.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                     } else {
                         Text(
-                            "Enter your email and we'll send you a reset link.",
-                            fontSize = 13.sp,
-                            color = Color.Gray
+                            text = "Enter your email and we'll send a reset link.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
                         OutlinedTextField(
                             value = resetEmail,
                             onValueChange = { resetEmail = it },
                             label = { Text("Email") },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            leadingIcon = { Icon(Icons.Default.Email, null, tint = Color.Gray) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Email,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            },
                             keyboardOptions = KeyboardOptions(
                                 keyboardType = KeyboardType.Email,
                                 imeAction = ImeAction.Send
@@ -247,10 +265,21 @@ fun LoginScreen(
                                         authViewModel.resetPassword(resetEmail.trim())
                                     }
                                 }
+                            ),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                focusedBorderColor = MaterialTheme.colorScheme.outline,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.surfaceVariant
                             )
                         )
                         if (state.error.isNotEmpty()) {
-                            Text(state.error, color = Color.Red, fontSize = 12.sp)
+                            Text(
+                                text = state.error,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
                         }
                     }
                 }
@@ -259,29 +288,37 @@ fun LoginScreen(
                 if (!state.resetEmailSent) {
                     Button(
                         onClick = { authViewModel.resetPassword(resetEmail.trim()) },
-                        colors = ButtonDefaults.buttonColors(containerColor = NavyBlue),
                         enabled = resetEmail.isNotBlank() && !state.isLoading
                     ) {
-                        if (state.isLoading)
+                        if (state.isLoading) {
                             CircularProgressIndicator(
-                                color = Color.White,
-                                modifier = Modifier.size(16.dp)
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp
                             )
-                        else
-                            Text("Send Reset Link")
+                        } else {
+                            Text("Send reset link")
+                        }
                     }
                 } else {
                     Button(
-                        onClick = { showForgotDialog = false; authViewModel.clearResetState() },
-                        colors = ButtonDefaults.buttonColors(containerColor = NavyBlue)
-                    ) { Text("Done") }
+                        onClick = {
+                            showForgotDialog = false
+                            authViewModel.clearResetState()
+                        }
+                    ) {
+                        Text("Done")
+                    }
                 }
             },
             dismissButton = {
                 if (!state.resetEmailSent) {
-                    TextButton(onClick = {
-                        showForgotDialog = false; authViewModel.clearResetState()
-                    }) {
+                    TextButton(
+                        onClick = {
+                            showForgotDialog = false
+                            authViewModel.clearResetState()
+                        }
+                    ) {
                         Text("Cancel")
                     }
                 }

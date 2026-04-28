@@ -38,6 +38,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -52,7 +53,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -61,10 +61,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.warehousetracker.AmberColor
 import com.example.warehousetracker.GreenColor
-import com.example.warehousetracker.LightBg
-import com.example.warehousetracker.NavyBlue
 import com.example.warehousetracker.RedColor
 import com.example.warehousetracker.data.model.UserProfile
+import com.example.warehousetracker.ui.components.SectionHeading
+import com.example.warehousetracker.ui.components.WarehouseSectionCard
+import com.example.warehousetracker.ui.components.WarehouseTag
 import com.example.warehousetracker.ui.viewmodel.AuthViewModel
 
 @Composable
@@ -72,7 +73,7 @@ fun ProfileScreen(
     authViewModel: AuthViewModel,
     onBack: () -> Unit,
     onImportClick: () -> Unit = {},
-    onRegisterUserClick: () -> Unit = {} // المعامل المفقود تم إضافته
+    onRegisterUserClick: () -> Unit = {}
 ) {
 
     LaunchedEffect(Unit) {
@@ -91,26 +92,280 @@ fun ProfileScreen(
     var showResetDialog by remember { mutableStateOf(false) }
     var userToDelete by remember { mutableStateOf<UserProfile?>(null) }
 
-    var successMsg by remember { mutableStateOf("") }
     var errorMsg by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(NavyBlue)
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
-            .navigationBarsPadding() // AVOID SYSTEM BUTTONS
+            .navigationBarsPadding()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Back",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            Column {
+                Text(
+                    text = "My Profile",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Account and access settings",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            WarehouseSectionCard {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(84.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val initials = profile?.name?.split(" ")
+                            ?.filter { it.isNotBlank() }
+                            ?.take(2)
+                            ?.map { it.first().uppercase() }
+                            ?.joinToString("")
+                            ?: "?"
+                        Text(
+                            text = initials,
+                            fontSize = 30.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Text(
+                        text = profile?.name ?: "",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    WarehouseTag(
+                        text = if (profile?.role == "admin") "Admin access" else "Employee access",
+                        containerColor = if (profile?.role == "admin") {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            GreenColor.copy(alpha = 0.15f)
+                        },
+                        contentColor = if (profile?.role == "admin") {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            GreenColor
+                        }
+                    )
+                }
+            }
+
+            if (profile?.role == "admin") {
+                WarehouseSectionCard {
+                    SectionHeading(
+                        title = "Admin tools",
+                        subtitle = "User access and import actions for your warehouse team."
+                    )
+                    Button(
+                        onClick = onRegisterUserClick,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Icon(Icons.Default.PersonAddAlt, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Create user account")
+                    }
+                    OutlinedButton(
+                        onClick = onImportClick,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Icon(Icons.Default.FileUpload, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Import employees from Excel")
+                    }
+                }
+
+                WarehouseSectionCard {
+                    SectionHeading(
+                        title = "Manage app users",
+                        subtitle = "Review user accounts assigned to this app."
+                    )
+                    authState.allUsers.filter { it.uid != profile.uid }.forEach { user ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .background(
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                                        CircleShape
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = user.name.take(1).uppercase(),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = user.name,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = user.email,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            IconButton(onClick = { userToDelete = user }) {
+                                Icon(
+                                    imageVector = Icons.Default.DeleteOutline,
+                                    contentDescription = "Delete user",
+                                    tint = RedColor
+                                )
+                            }
+                        }
+                        if (user != authState.allUsers.lastOrNull()) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f))
+                        }
+                    }
+                }
+            }
+
+            WarehouseSectionCard {
+                SectionHeading(
+                    title = "Personal information",
+                    subtitle = "Your current sign-in details."
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Email,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Column {
+                        Text(
+                            text = "Email",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = profile?.email ?: "",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Column {
+                            Text(
+                                text = "Password",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "••••••••",
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                    IconButton(onClick = { showChangePasswordDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Change password",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
+            OutlinedButton(
+                onClick = { showResetDialog = true },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = AmberColor)
+            ) {
+                Icon(Icons.Default.Mail, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Send password reset link")
+            }
+
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+    return
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.primary)
+            .statusBarsPadding()
+            .navigationBarsPadding()
     ) {
         // Header
         Box(modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 16.dp)) {
             IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
-                Icon(Icons.Default.ArrowBack, null, tint = Color.White)
+                Icon(Icons.Default.ArrowBack, null, tint = MaterialTheme.colorScheme.onPrimary)
             }
             Text(
                 "My Profile",
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onPrimary,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.align(Alignment.Center)
@@ -120,7 +375,7 @@ fun ProfileScreen(
         Card(
             modifier = Modifier.fillMaxSize(),
             shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-            colors = CardDefaults.cardColors(containerColor = LightBg)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background)
         ) {
             Column(
                 modifier = Modifier
@@ -141,7 +396,7 @@ fun ProfileScreen(
                         modifier = Modifier
                             .size(80.dp)
                             .clip(CircleShape)
-                            .background(NavyBlue.copy(0.1f)),
+                            .background(MaterialTheme.colorScheme.primary.copy(0.1f)),
                         contentAlignment = Alignment.Center
                     ) {
                         val initials = profile?.name?.split(" ")
@@ -151,29 +406,30 @@ fun ProfileScreen(
                             initials,
                             fontSize = 28.sp,
                             fontWeight = FontWeight.Bold,
-                            color = NavyBlue
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                     Text(
                         profile?.name ?: "",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = NavyBlue
+                        color = MaterialTheme.colorScheme.primary
                     )
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(20.dp))
                             .background(
-                                if (profile?.role == "admin") NavyBlue.copy(0.1f) else GreenColor.copy(
+                                if (profile?.role == "admin") MaterialTheme.colorScheme.primary.copy(
                                     0.1f
                                 )
+                                else GreenColor.copy(0.1f)
                             )
                             .padding(horizontal = 16.dp, vertical = 4.dp)
                     ) {
                         Text(
                             if (profile?.role == "admin") "Admin" else "Employee",
                             fontSize = 12.sp,
-                            color = if (profile?.role == "admin") NavyBlue else GreenColor,
+                            color = if (profile?.role == "admin") MaterialTheme.colorScheme.primary else GreenColor,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -184,7 +440,7 @@ fun ProfileScreen(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White)
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                     ) {
                         Column(
                             modifier = Modifier.padding(16.dp),
@@ -194,15 +450,19 @@ fun ProfileScreen(
                                 onClick = onRegisterUserClick,
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(10.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = NavyBlue)
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                             ) {
                                 Icon(
                                     Icons.Default.PersonAddAlt,
                                     null,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(18.dp),
+                                    tint = MaterialTheme.colorScheme.onPrimary
                                 )
                                 Spacer(Modifier.width(8.dp))
-                                Text("Create New User Account")
+                                Text(
+                                    "Create New User Account",
+                                    color = MaterialTheme.colorScheme.onPrimary
+                                )
                             }
                             OutlinedButton(
                                 onClick = onImportClick,
@@ -212,10 +472,14 @@ fun ProfileScreen(
                                 Icon(
                                     Icons.Default.FileUpload,
                                     null,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(18.dp),
+                                    tint = MaterialTheme.colorScheme.primary
                                 )
                                 Spacer(Modifier.width(8.dp))
-                                Text("Import Employees from Excel")
+                                Text(
+                                    "Import Employees from Excel",
+                                    color = MaterialTheme.colorScheme.primary
+                                )
                             }
                         }
                     }
@@ -225,12 +489,12 @@ fun ProfileScreen(
                         "Manage App Users",
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
-                        color = NavyBlue
+                        color = MaterialTheme.colorScheme.primary
                     )
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White)
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             authState.allUsers.filter { it.uid != profile.uid }.forEach { user ->
@@ -243,14 +507,17 @@ fun ProfileScreen(
                                     Box(
                                         Modifier
                                             .size(32.dp)
-                                            .background(NavyBlue.copy(0.05f), CircleShape),
+                                            .background(
+                                                MaterialTheme.colorScheme.primary.copy(0.05f),
+                                                CircleShape
+                                            ),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
                                             user.name.take(1).uppercase(),
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = NavyBlue
+                                            color = MaterialTheme.colorScheme.primary
                                         )
                                     }
                                     Spacer(Modifier.width(10.dp))
@@ -258,9 +525,14 @@ fun ProfileScreen(
                                         Text(
                                             user.name,
                                             fontSize = 13.sp,
-                                            fontWeight = FontWeight.Medium
+                                            fontWeight = FontWeight.Medium,
+                                            color = MaterialTheme.colorScheme.onSurface
                                         )
-                                        Text(user.email, fontSize = 11.sp, color = Color.Gray)
+                                        Text(
+                                            user.email,
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
                                     }
                                     IconButton(onClick = { userToDelete = user }) {
                                         Icon(
@@ -272,9 +544,7 @@ fun ProfileScreen(
                                     }
                                 }
                                 if (user != authState.allUsers.lastOrNull()) HorizontalDivider(
-                                    color = Color.Gray.copy(
-                                        0.05f
-                                    )
+                                    color = MaterialTheme.colorScheme.onSurface.copy(0.05f)
                                 )
                             }
                         }
@@ -285,7 +555,7 @@ fun ProfileScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White)
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp),
@@ -295,9 +565,9 @@ fun ProfileScreen(
                             "Personal Information",
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
-                            color = NavyBlue
+                            color = MaterialTheme.colorScheme.primary
                         )
-                        HorizontalDivider(color = Color.Gray.copy(0.1f))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(0.1f))
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -306,20 +576,25 @@ fun ProfileScreen(
                             Icon(
                                 Icons.Default.Email,
                                 null,
-                                tint = NavyBlue.copy(0.6f),
+                                tint = MaterialTheme.colorScheme.primary.copy(0.6f),
                                 modifier = Modifier.size(18.dp)
                             )
                             Column {
-                                Text("Email", fontSize = 11.sp, color = Color.Gray)
+                                Text(
+                                    "Email",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                                 Text(
                                     profile?.email ?: "",
                                     fontSize = 13.sp,
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }
 
-                        HorizontalDivider(color = Color.Gray.copy(0.1f))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(0.1f))
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -333,15 +608,20 @@ fun ProfileScreen(
                                 Icon(
                                     Icons.Default.Lock,
                                     null,
-                                    tint = NavyBlue.copy(0.6f),
+                                    tint = MaterialTheme.colorScheme.primary.copy(0.6f),
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Column {
-                                    Text("Password", fontSize = 11.sp, color = Color.Gray)
+                                    Text(
+                                        "Password",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                     Text(
                                         "••••••••",
                                         fontSize = 13.sp,
-                                        fontWeight = FontWeight.Medium
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
                                 }
                             }
@@ -349,7 +629,7 @@ fun ProfileScreen(
                                 Icon(
                                     Icons.Default.Edit,
                                     null,
-                                    tint = NavyBlue,
+                                    tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -417,7 +697,7 @@ fun ProfileScreen(
                                 Icon(
                                     if (showNewPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                     null,
-                                    tint = Color.Gray
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -436,12 +716,16 @@ fun ProfileScreen(
                                 Icon(
                                     if (showConfirmPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                     null,
-                                    tint = Color.Gray
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
                     )
-                    if (errorMsg.isNotEmpty()) Text(errorMsg, color = Color.Red, fontSize = 12.sp)
+                    if (errorMsg.isNotEmpty()) Text(
+                        errorMsg,
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 12.sp
+                    )
                 }
             },
             confirmButton = {
@@ -459,8 +743,8 @@ fun ProfileScreen(
                             }
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = NavyBlue)
-                ) { Text("Update") }
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) { Text("Update", color = MaterialTheme.colorScheme.onPrimary) }
             },
             dismissButton = {
                 TextButton(onClick = {
@@ -478,9 +762,7 @@ fun ProfileScreen(
             confirmButton = {
                 if (!authState.resetEmailSent) {
                     Button(onClick = { profile?.email?.let { authViewModel.resetPassword(it) } }) {
-                        Text(
-                            "Send"
-                        )
+                        Text("Send")
                     }
                 } else {
                     Button(onClick = {
